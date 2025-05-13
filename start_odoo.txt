@@ -1,0 +1,5 @@
+@echo off
+cd C:\Users\ADMIN\OneDrive\Desktop\odoo-env\Scripts
+activate
+cd C:\sbot\Odoo\odoo
+python odoo-bin -c C:\sbot\Odoo\odoo\odoo.conf
