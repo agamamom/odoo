@@ -3,3 +3,5 @@ cd C:\Users\ADMIN\OneDrive\Desktop\odoo-env\Scripts
 activate
 cd C:\sbot\Odoo\odoo
 python odoo-bin -c C:\sbot\Odoo\odoo\odoo.conf
+
+Khởi động lại Odoo server: odoo-bin -c C:\sbot\Odoo\odoo\odoo.conf -u custom_api.
