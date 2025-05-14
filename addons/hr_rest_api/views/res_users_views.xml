@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Inherit user form view to add API key field for HR REST API -->
+    <record id="view_users_form_hr_rest_api" model="ir.ui.view">
+        <field name="name">res.users.form.hr.rest.api</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_users_form"/>
+        <field name="arch" type="xml">
+            <notebook position="inside">
+                <page string="HR REST API" name="hr_rest_api" groups="base.group_system">
+                    <group>
+                        <field name="api_key"/>
+                        <button string="Generate API Key" type="object" name="generate_api_key" 
+                                class="btn-primary" invisible="api_key"/>
+                        <button string="Reset API Key" type="object" name="reset_api_key" 
+                                class="btn-secondary" invisible="not api_key"/>
+                        <div class="text-muted mt-2" colspan="2">
+                            This API key is used for authenticating with the HR REST API endpoints.
+                            Keep this key secure as it provides access to HR data.
+                        </div>
+                    </group>
+                </page>
+            </notebook>
+        </field>
+    </record>
+</odoo> 

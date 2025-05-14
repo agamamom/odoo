@@ -1,0 +1,535 @@
+from odoo import http
+from odoo.http import request
+import json
+from werkzeug.exceptions import BadRequest
+
+
+class HrRestApiController(http.Controller):
+    
+    def _validate_api_key(self):
+        """Validate the API key from the request headers"""
+        api_key = request.httprequest.headers.get('API-Key')
+        if not api_key:
+            return False, {"error": "API Key is required in the header"}
+        
+        # Check if the API key is valid (in a real implementation, this should be stored securely)
+        user = request.env['res.users'].sudo().search([('api_key', '=', api_key)], limit=1)
+        if not user:
+            return False, {"error": "Invalid API Key"}
+        
+        return True, user
+    
+    def _handle_request(self, model, fields, domain=None, limit=100, offset=0, order=None):
+        """Common method to handle API requests"""
+        try:
+            if domain is None:
+                domain = []
+                
+            # Validate API key
+            is_valid, result = self._validate_api_key()
+            if not is_valid:
+                return result
+                
+            # Get data from the model
+            records = request.env[model].sudo().search_read(
+                domain=domain,
+                fields=fields,
+                limit=limit,
+                offset=offset,
+                order=order
+            )
+            
+            return {
+                'success': True,
+                'count': len(records),
+                'data': records
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    def _handle_create(self, model, data):
+        """Common method to handle create requests"""
+        try:
+            # Validate API key
+            is_valid, result = self._validate_api_key()
+            if not is_valid:
+                return result
+                
+            # Create record
+            record = request.env[model].sudo().create(data)
+            
+            return {
+                'success': True,
+                'id': record.id,
+                'message': f'Record created successfully'
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    def _handle_update(self, model, record_id, data):
+        """Common method to handle update requests"""
+        try:
+            # Validate API key
+            is_valid, result = self._validate_api_key()
+            if not is_valid:
+                return result
+                
+            # Update record
+            record = request.env[model].sudo().browse(record_id)
+            if not record.exists():
+                return {
+                    'success': False,
+                    'error': f'Record not found with ID {record_id}'
+                }
+                
+            record.write(data)
+            
+            return {
+                'success': True,
+                'id': record.id,
+                'message': f'Record updated successfully'
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    def _handle_delete(self, model, record_id):
+        """Common method to handle delete requests"""
+        try:
+            # Validate API key
+            is_valid, result = self._validate_api_key()
+            if not is_valid:
+                return result
+                
+            # Delete record
+            record = request.env[model].sudo().browse(record_id)
+            if not record.exists():
+                return {
+                    'success': False,
+                    'error': f'Record not found with ID {record_id}'
+                }
+                
+            record.unlink()
+            
+            return {
+                'success': True,
+                'message': f'Record deleted successfully'
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    # Employee endpoints
+    @http.route('/api/hr/employees', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_employees(self, **kw):
+        """Get list of employees"""
+        limit = int(kw.get('limit', 100))
+        offset = int(kw.get('offset', 0))
+        order = kw.get('order', 'id')
+        
+        fields = [
+            'id', 'name', 'job_title', 'department_id', 'work_phone', 
+            'mobile_phone', 'work_email', 'job_id', 'address_id',
+            'work_location_id', 'parent_id', 'coach_id', 'category_ids',
+            'resource_calendar_id', 'company_id', 'active'
+        ]
+        
+        result = self._handle_request(
+            model='hr.employee',
+            fields=fields,
+            limit=limit,
+            offset=offset,
+            order=order
+        )
+        
+        return request.make_response(
+            json.dumps(result),
+            headers=[('Content-Type', 'application/json')]
+        )
+    
+    @http.route('/api/hr/employees/<int:employee_id>', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_employee(self, employee_id, **kw):
+        """Get employee by ID"""
+        fields = [
+            'id', 'name', 'job_title', 'department_id', 'work_phone', 
+            'mobile_phone', 'work_email', 'job_id', 'address_id',
+            'work_location_id', 'parent_id', 'coach_id', 'category_ids',
+            'resource_calendar_id', 'company_id', 'active'
+        ]
+        
+        result = self._handle_request(
+            model='hr.employee',
+            fields=fields,
+            domain=[('id', '=', employee_id)]
+        )
+        
+        if result.get('success') and result.get('count') > 0:
+            result['data'] = result['data'][0]
+        
+        return request.make_response(
+            json.dumps(result),
+            headers=[('Content-Type', 'application/json')]
+        )
+    
+    @http.route('/api/hr/employees', type='json', auth='public', methods=['POST'], csrf=False)
+    def create_employee(self, **kw):
+        """Create a new employee"""
+        try:
+            data = json.loads(request.httprequest.data.decode('utf-8'))
+        except Exception:
+            data = request.jsonrequest
+        
+        required_fields = ['name']
+        for field in required_fields:
+            if field not in data:
+                return {
+                    'success': False,
+                    'error': f'Missing required field: {field}'
+                }
+        
+        result = self._handle_create(
+            model='hr.employee',
+            data=data
+        )
+        
+        return result
+    
+    @http.route('/api/hr/employees/<int:employee_id>', type='json', auth='public', methods=['PUT'], csrf=False)
+    def update_employee(self, employee_id, **kw):
+        """Update an employee"""
+        try:
+            data = json.loads(request.httprequest.data.decode('utf-8'))
+        except Exception:
+            data = request.jsonrequest
+        
+        result = self._handle_update(
+            model='hr.employee',
+            record_id=employee_id,
+            data=data
+        )
+        
+        return result
+    
+    @http.route('/api/hr/employees/<int:employee_id>', type='http', auth='public', methods=['DELETE'], csrf=False)
+    def delete_employee(self, employee_id, **kw):
+        """Delete an employee"""
+        result = self._handle_delete(
+            model='hr.employee',
+            record_id=employee_id
+        )
+        
+        return request.make_response(
+            json.dumps(result),
+            headers=[('Content-Type', 'application/json')]
+        )
+    
+    # Department endpoints
+    @http.route('/api/hr/departments', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_departments(self, **kw):
+        """Get list of departments"""
+        limit = int(kw.get('limit', 100))
+        offset = int(kw.get('offset', 0))
+        order = kw.get('order', 'id')
+        
+        fields = [
+            'id', 'name', 'complete_name', 'active', 'company_id', 
+            'parent_id', 'manager_id', 'note', 'color', 'total_employee'
+        ]
+        
+        result = self._handle_request(
+            model='hr.department',
+            fields=fields,
+            limit=limit,
+            offset=offset,
+            order=order
+        )
+        
+        return request.make_response(
+            json.dumps(result),
+            headers=[('Content-Type', 'application/json')]
+        )
+    
+    @http.route('/api/hr/departments/<int:department_id>', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_department(self, department_id, **kw):
+        """Get department by ID"""
+        fields = [
+            'id', 'name', 'complete_name', 'active', 'company_id', 
+            'parent_id', 'manager_id', 'note', 'color', 'total_employee'
+        ]
+        
+        result = self._handle_request(
+            model='hr.department',
+            fields=fields,
+            domain=[('id', '=', department_id)]
+        )
+        
+        if result.get('success') and result.get('count') > 0:
+            result['data'] = result['data'][0]
+        
+        return request.make_response(
+            json.dumps(result),
+            headers=[('Content-Type', 'application/json')]
+        )
+    
+    @http.route('/api/hr/departments', type='json', auth='public', methods=['POST'], csrf=False)
+    def create_department(self, **kw):
+        """Create a new department"""
+        try:
+            data = json.loads(request.httprequest.data.decode('utf-8'))
+        except Exception:
+            data = request.jsonrequest
+        
+        required_fields = ['name']
+        for field in required_fields:
+            if field not in data:
+                return {
+                    'success': False,
+                    'error': f'Missing required field: {field}'
+                }
+        
+        result = self._handle_create(
+            model='hr.department',
+            data=data
+        )
+        
+        return result
+    
+    @http.route('/api/hr/departments/<int:department_id>', type='json', auth='public', methods=['PUT'], csrf=False)
+    def update_department(self, department_id, **kw):
+        """Update a department"""
+        try:
+            data = json.loads(request.httprequest.data.decode('utf-8'))
+        except Exception:
+            data = request.jsonrequest
+        
+        result = self._handle_update(
+            model='hr.department',
+            record_id=department_id,
+            data=data
+        )
+        
+        return result
+    
+    @http.route('/api/hr/departments/<int:department_id>', type='http', auth='public', methods=['DELETE'], csrf=False)
+    def delete_department(self, department_id, **kw):
+        """Delete a department"""
+        result = self._handle_delete(
+            model='hr.department',
+            record_id=department_id
+        )
+        
+        return request.make_response(
+            json.dumps(result),
+            headers=[('Content-Type', 'application/json')]
+        )
+    
+    # Job position endpoints
+    @http.route('/api/hr/jobs', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_jobs(self, **kw):
+        """Get list of job positions"""
+        limit = int(kw.get('limit', 100))
+        offset = int(kw.get('offset', 0))
+        order = kw.get('order', 'id')
+        
+        fields = [
+            'id', 'name', 'expected_employees', 'no_of_employee',
+            'no_of_recruitment', 'no_of_hired_employee', 'department_id', 
+            'description', 'requirements', 'company_id', 'state'
+        ]
+        
+        result = self._handle_request(
+            model='hr.job',
+            fields=fields,
+            limit=limit,
+            offset=offset,
+            order=order
+        )
+        
+        return request.make_response(
+            json.dumps(result),
+            headers=[('Content-Type', 'application/json')]
+        )
+    
+    @http.route('/api/hr/jobs/<int:job_id>', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_job(self, job_id, **kw):
+        """Get job position by ID"""
+        fields = [
+            'id', 'name', 'expected_employees', 'no_of_employee',
+            'no_of_recruitment', 'no_of_hired_employee', 'department_id', 
+            'description', 'requirements', 'company_id', 'state'
+        ]
+        
+        result = self._handle_request(
+            model='hr.job',
+            fields=fields,
+            domain=[('id', '=', job_id)]
+        )
+        
+        if result.get('success') and result.get('count') > 0:
+            result['data'] = result['data'][0]
+        
+        return request.make_response(
+            json.dumps(result),
+            headers=[('Content-Type', 'application/json')]
+        )
+    
+    @http.route('/api/hr/jobs', type='json', auth='public', methods=['POST'], csrf=False)
+    def create_job(self, **kw):
+        """Create a new job position"""
+        try:
+            data = json.loads(request.httprequest.data.decode('utf-8'))
+        except Exception:
+            data = request.jsonrequest
+        
+        required_fields = ['name']
+        for field in required_fields:
+            if field not in data:
+                return {
+                    'success': False,
+                    'error': f'Missing required field: {field}'
+                }
+        
+        result = self._handle_create(
+            model='hr.job',
+            data=data
+        )
+        
+        return result
+    
+    @http.route('/api/hr/jobs/<int:job_id>', type='json', auth='public', methods=['PUT'], csrf=False)
+    def update_job(self, job_id, **kw):
+        """Update a job position"""
+        try:
+            data = json.loads(request.httprequest.data.decode('utf-8'))
+        except Exception:
+            data = request.jsonrequest
+        
+        result = self._handle_update(
+            model='hr.job',
+            record_id=job_id,
+            data=data
+        )
+        
+        return result
+    
+    @http.route('/api/hr/jobs/<int:job_id>', type='http', auth='public', methods=['DELETE'], csrf=False)
+    def delete_job(self, job_id, **kw):
+        """Delete a job position"""
+        result = self._handle_delete(
+            model='hr.job',
+            record_id=job_id
+        )
+        
+        return request.make_response(
+            json.dumps(result),
+            headers=[('Content-Type', 'application/json')]
+        )
+    
+    # Employee categories/tags endpoints
+    @http.route('/api/hr/employee_categories', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_employee_categories(self, **kw):
+        """Get list of employee categories/tags"""
+        limit = int(kw.get('limit', 100))
+        offset = int(kw.get('offset', 0))
+        order = kw.get('order', 'id')
+        
+        fields = ['id', 'name', 'color']
+        
+        result = self._handle_request(
+            model='hr.employee.category',
+            fields=fields,
+            limit=limit,
+            offset=offset,
+            order=order
+        )
+        
+        return request.make_response(
+            json.dumps(result),
+            headers=[('Content-Type', 'application/json')]
+        )
+    
+    # Work location endpoints
+    @http.route('/api/hr/work_locations', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_work_locations(self, **kw):
+        """Get list of work locations"""
+        limit = int(kw.get('limit', 100))
+        offset = int(kw.get('offset', 0))
+        order = kw.get('order', 'id')
+        
+        fields = ['id', 'name', 'address_id', 'company_id', 'active']
+        
+        result = self._handle_request(
+            model='hr.work.location',
+            fields=fields,
+            limit=limit,
+            offset=offset,
+            order=order
+        )
+        
+        return request.make_response(
+            json.dumps(result),
+            headers=[('Content-Type', 'application/json')]
+        )
+    
+    # Departure reason endpoints
+    @http.route('/api/hr/departure_reasons', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_departure_reasons(self, **kw):
+        """Get list of departure reasons"""
+        limit = int(kw.get('limit', 100))
+        offset = int(kw.get('offset', 0))
+        order = kw.get('order', 'id')
+        
+        fields = ['id', 'name', 'sequence']
+        
+        result = self._handle_request(
+            model='hr.departure.reason',
+            fields=fields,
+            limit=limit,
+            offset=offset,
+            order=order
+        )
+        
+        return request.make_response(
+            json.dumps(result),
+            headers=[('Content-Type', 'application/json')]
+        )
+    
+    # Resource calendar endpoints
+    @http.route('/api/hr/resource_calendars', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_resource_calendars(self, **kw):
+        """Get list of resource calendars (work schedules)"""
+        limit = int(kw.get('limit', 100))
+        offset = int(kw.get('offset', 0))
+        order = kw.get('order', 'id')
+        
+        fields = [
+            'id', 'name', 'company_id', 'hours_per_day', 'tz',
+            'two_weeks_calendar', 'hours_week'
+        ]
+        
+        result = self._handle_request(
+            model='resource.calendar',
+            fields=fields,
+            limit=limit,
+            offset=offset,
+            order=order
+        )
+        
+        return request.make_response(
+            json.dumps(result),
+            headers=[('Content-Type', 'application/json')]
+        ) 
