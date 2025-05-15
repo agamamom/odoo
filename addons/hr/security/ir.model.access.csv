@@ -15,3 +15,9 @@ access_hr_departure_reason,access_hr_departure_reason_user,model_hr_departure_re
 access_hr_contract_type_manager,hr.contract.type.manager,model_hr_contract_type,hr.group_hr_user,1,1,1,1
 access_mail_activity_plan_hr_manager,mail.activity.plan.hr.manager,mail.model_mail_activity_plan,hr.group_hr_manager,1,1,1,1
 access_mail_activity_plan_template_hr_manager,mail.activity.plan.template.hr.manager,mail.model_mail_activity_plan_template,hr.group_hr_manager,1,1,1,1
+access_hr_employee_bhxh_history,Truy cập lịch sử giao dịch BHXH/BHYT nhân viên,model_hr_employee_bhxh_history,hr.group_hr_user,1,1,1,1
+access_hr_employee_project_assignment,Truy cập phân bổ dự án nhân viên,model_hr_employee_project_assignment,hr.group_hr_user,1,1,1,1
+access_hr_employee_skill,Truy cập kỹ năng nhân viên,model_hr_employee_skill,hr.group_hr_user,1,1,1,1
+access_hr_employee_shift,Truy cập ca làm việc nhân viên,model_hr_employee_shift,hr.group_hr_user,1,1,1,1
+access_hr_employee_contract,Truy cập hợp đồng lao động nhân viên,model_hr_employee_contract,hr.group_hr_user,1,1,1,1
+access_hr_employee_personal_income_tax,Truy cập quyết toán thuế TNCN nhân viên,model_hr_employee_personal_income_tax,hr.group_hr_user,1,1,1,1

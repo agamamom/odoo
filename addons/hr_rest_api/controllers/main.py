@@ -634,3 +634,229 @@ class HrRestApiController(http.Controller):
             headers=[('Content-Type', 'application/json')]
         )
         return self._add_cors_headers(response)
+
+    # --- BHXH History Endpoints ---
+    @http.route('/api/hr/employees/<int:employee_id>/bhxh_histories', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_bhxh_histories(self, employee_id, **kw):
+        """Get BHXH history for an employee"""
+        result = self._handle_request(
+            model='hr.employee.bhxh.history',
+            fields=['id', 'employee_id', 'action_type', 'date_action', 'status', 'transaction_code', 'file_sent', 'file_response', 'response_note'],
+            domain=[('employee_id', '=', employee_id)]
+        )
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    @http.route('/api/hr/employees/<int:employee_id>/bhxh_histories', type='json', auth='public', methods=['POST'], csrf=False)
+    def create_bhxh_history(self, employee_id, **kw):
+        try:
+            data = json.loads(request.httprequest.data.decode('utf-8'))
+        except Exception:
+            data = request.jsonrequest
+        data['employee_id'] = employee_id
+        result = self._handle_create('hr.employee.bhxh.history', data)
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    @http.route('/api/hr/bhxh_histories/<int:bhxh_id>', type='json', auth='public', methods=['PUT'], csrf=False)
+    def update_bhxh_history(self, bhxh_id, **kw):
+        try:
+            data = json.loads(request.httprequest.data.decode('utf-8'))
+        except Exception:
+            data = request.jsonrequest
+        result = self._handle_update('hr.employee.bhxh.history', bhxh_id, data)
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    @http.route('/api/hr/bhxh_histories/<int:bhxh_id>', type='http', auth='public', methods=['DELETE'], csrf=False)
+    def delete_bhxh_history(self, bhxh_id, **kw):
+        result = self._handle_delete('hr.employee.bhxh.history', bhxh_id)
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    # --- Personal Income Tax Endpoints ---
+    @http.route('/api/hr/employees/<int:employee_id>/personal_income_taxes', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_personal_income_taxes(self, employee_id, **kw):
+        result = self._handle_request(
+            model='hr.employee.personal.income.tax',
+            fields=['id', 'employee_id', 'year', 'total_income', 'self_deduction', 'dependent_deduction', 'taxable_income', 'tax_amount', 'tax_file', 'state'],
+            domain=[('employee_id', '=', employee_id)]
+        )
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    @http.route('/api/hr/employees/<int:employee_id>/personal_income_taxes', type='json', auth='public', methods=['POST'], csrf=False)
+    def create_personal_income_tax(self, employee_id, **kw):
+        try:
+            data = json.loads(request.httprequest.data.decode('utf-8'))
+        except Exception:
+            data = request.jsonrequest
+        data['employee_id'] = employee_id
+        result = self._handle_create('hr.employee.personal.income.tax', data)
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    @http.route('/api/hr/personal_income_taxes/<int:tax_id>', type='json', auth='public', methods=['PUT'], csrf=False)
+    def update_personal_income_tax(self, tax_id, **kw):
+        try:
+            data = json.loads(request.httprequest.data.decode('utf-8'))
+        except Exception:
+            data = request.jsonrequest
+        result = self._handle_update('hr.employee.personal.income.tax', tax_id, data)
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    @http.route('/api/hr/personal_income_taxes/<int:tax_id>', type='http', auth='public', methods=['DELETE'], csrf=False)
+    def delete_personal_income_tax(self, tax_id, **kw):
+        result = self._handle_delete('hr.employee.personal.income.tax', tax_id)
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    # --- Project Assignment Endpoints ---
+    @http.route('/api/hr/employees/<int:employee_id>/project_assignments', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_project_assignments(self, employee_id, **kw):
+        result = self._handle_request(
+            model='hr.employee.project.assignment',
+            fields=['id', 'employee_id', 'project_id', 'role', 'date_start', 'date_end', 'progress', 'performance_score', 'note'],
+            domain=[('employee_id', '=', employee_id)]
+        )
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    @http.route('/api/hr/employees/<int:employee_id>/project_assignments', type='json', auth='public', methods=['POST'], csrf=False)
+    def create_project_assignment(self, employee_id, **kw):
+        try:
+            data = json.loads(request.httprequest.data.decode('utf-8'))
+        except Exception:
+            data = request.jsonrequest
+        data['employee_id'] = employee_id
+        result = self._handle_create('hr.employee.project.assignment', data)
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    @http.route('/api/hr/project_assignments/<int:assignment_id>', type='json', auth='public', methods=['PUT'], csrf=False)
+    def update_project_assignment(self, assignment_id, **kw):
+        try:
+            data = json.loads(request.httprequest.data.decode('utf-8'))
+        except Exception:
+            data = request.jsonrequest
+        result = self._handle_update('hr.employee.project.assignment', assignment_id, data)
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    @http.route('/api/hr/project_assignments/<int:assignment_id>', type='http', auth='public', methods=['DELETE'], csrf=False)
+    def delete_project_assignment(self, assignment_id, **kw):
+        result = self._handle_delete('hr.employee.project.assignment', assignment_id)
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    # --- Employee Skill Endpoints ---
+    @http.route('/api/hr/employees/<int:employee_id>/skills', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_employee_skills(self, employee_id, **kw):
+        result = self._handle_request(
+            model='hr.employee.skill',
+            fields=['id', 'employee_id', 'skill_name', 'skill_level', 'certificate', 'certificate_issue_date', 'certificate_expiry_date', 'note'],
+            domain=[('employee_id', '=', employee_id)]
+        )
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    @http.route('/api/hr/employees/<int:employee_id>/skills', type='json', auth='public', methods=['POST'], csrf=False)
+    def create_employee_skill(self, employee_id, **kw):
+        try:
+            data = json.loads(request.httprequest.data.decode('utf-8'))
+        except Exception:
+            data = request.jsonrequest
+        data['employee_id'] = employee_id
+        result = self._handle_create('hr.employee.skill', data)
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    @http.route('/api/hr/skills/<int:skill_id>', type='json', auth='public', methods=['PUT'], csrf=False)
+    def update_employee_skill(self, skill_id, **kw):
+        try:
+            data = json.loads(request.httprequest.data.decode('utf-8'))
+        except Exception:
+            data = request.jsonrequest
+        result = self._handle_update('hr.employee.skill', skill_id, data)
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    @http.route('/api/hr/skills/<int:skill_id>', type='http', auth='public', methods=['DELETE'], csrf=False)
+    def delete_employee_skill(self, skill_id, **kw):
+        result = self._handle_delete('hr.employee.skill', skill_id)
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    # --- Employee Contract Endpoints ---
+    @http.route('/api/hr/employees/<int:employee_id>/contracts', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_employee_contracts(self, employee_id, **kw):
+        result = self._handle_request(
+            model='hr.employee.contract',
+            fields=['id', 'employee_id', 'contract_number', 'sign_date', 'expiry_date', 'contract_type', 'file_scan'],
+            domain=[('employee_id', '=', employee_id)]
+        )
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    @http.route('/api/hr/employees/<int:employee_id>/contracts', type='json', auth='public', methods=['POST'], csrf=False)
+    def create_employee_contract(self, employee_id, **kw):
+        try:
+            data = json.loads(request.httprequest.data.decode('utf-8'))
+        except Exception:
+            data = request.jsonrequest
+        data['employee_id'] = employee_id
+        result = self._handle_create('hr.employee.contract', data)
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    @http.route('/api/hr/contracts/<int:contract_id>', type='json', auth='public', methods=['PUT'], csrf=False)
+    def update_employee_contract(self, contract_id, **kw):
+        try:
+            data = json.loads(request.httprequest.data.decode('utf-8'))
+        except Exception:
+            data = request.jsonrequest
+        result = self._handle_update('hr.employee.contract', contract_id, data)
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    @http.route('/api/hr/contracts/<int:contract_id>', type='http', auth='public', methods=['DELETE'], csrf=False)
+    def delete_employee_contract(self, contract_id, **kw):
+        result = self._handle_delete('hr.employee.contract', contract_id)
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    # --- Export Employee List Endpoints ---
+    @http.route('/api/hr/employees/export/excel', type='http', auth='public', methods=['GET'], csrf=False)
+    def export_employee_list_excel(self, **kw):
+        is_valid, user = self._validate_api_key()
+        if not is_valid:
+            response = request.make_response(json.dumps(user), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+        fields_to_export = kw.get('fields')
+        if fields_to_export:
+            try:
+                fields_to_export = json.loads(fields_to_export)
+            except Exception:
+                fields_to_export = None
+        employees = request.env['hr.employee'].sudo().search([])
+        filename, file_content = employees.export_employee_list_excel(fields_to_export)
+        response = request.make_response(file_content, headers=[('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'), ('Content-Disposition', f'attachment; filename={filename}')])
+        return self._add_cors_headers(response)
+
+    @http.route('/api/hr/employees/export/pdf', type='http', auth='public', methods=['GET'], csrf=False)
+    def export_employee_list_pdf(self, **kw):
+        is_valid, user = self._validate_api_key()
+        if not is_valid:
+            response = request.make_response(json.dumps(user), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+        fields_to_export = kw.get('fields')
+        if fields_to_export:
+            try:
+                fields_to_export = json.loads(fields_to_export)
+            except Exception:
+                fields_to_export = None
+        employees = request.env['hr.employee'].sudo().search([])
+        filename, file_content = employees.export_employee_list_pdf(fields_to_export)
+        response = request.make_response(file_content, headers=[('Content-Type', 'application/pdf'), ('Content-Disposition', f'attachment; filename={filename}')])
+        return self._add_cors_headers(response)

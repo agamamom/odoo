@@ -6,15 +6,6 @@
           <field name="name">Administration</field>
         </record>
 
-        <record id="employee_admin" model="hr.employee">
-            <field name="name" eval="obj(ref('base.partner_admin')).name" model="res.partner"/>
-            <field name="department_id" ref="dep_administration"/>
-            <field name="user_id" ref="base.user_admin"/>
-            <field name="address_id" ref="base.main_partner"/>
-            <field name="private_email">admin@example.com</field>
-            <field name="image_1920" eval="obj(ref('base.partner_admin')).image_1920" model="res.partner"/>
-        </record>
-
         <record id="onboarding_plan" model="mail.activity.plan">
             <field name="name">Onboarding</field>
             <field name="res_model">hr.employee</field>
@@ -106,7 +97,7 @@
             <field name="sequence">5</field>
         </record>
 
-        <record id="contract_type_part_time" model="hr.contract.type">
+        <record id="contract_type_intern" model="hr.contract.type">
             <field name="name">Intern</field>
             <field name="sequence">6</field>
         </record>
@@ -149,19 +140,16 @@
         <record id="home_work_location" model="hr.work.location">
             <field name="name">Home</field>
             <field name="location_type">home</field>
-            <field name="address_id" ref="base.main_partner"/>
         </record>
 
         <record id="home_work_office" model="hr.work.location">
             <field name="name">Office</field>
             <field name="location_type">office</field>
-            <field name="address_id" ref="base.main_partner"/>
         </record>
 
         <record id="home_work_other" model="hr.work.location">
             <field name="name">Other</field>
             <field name="location_type">other</field>
-            <field name="address_id" ref="base.main_partner"/>
         </record>
     </data>
 </odoo>

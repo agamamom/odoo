@@ -185,6 +185,48 @@
                                         <field name="work_permit_name" invisible="1"/>
                                         <field name="has_work_permit" widget="work_permit_upload" filename="work_permit_name"/>
                                     </group>
+                                    <group string="Thông tin BHXH/BHYT/BHTN (Việt Nam)">
+                                        <field name="bhxh_code"/>
+                                        <field name="bhyt_code"/>
+                                        <field name="bhtn_code"/>
+                                        <field name="kcb_place"/>
+                                        <field name="minimum_wage_region"/>
+                                    </group>
+                                    <group string="Thông tin hợp đồng lao động (Việt Nam)">
+                                        <field name="labor_contract_number"/>
+                                        <field name="labor_contract_sign_date"/>
+                                        <field name="labor_contract_expiry_date"/>
+                                        <field name="labor_contract_type"/>
+                                        <field name="labor_contract_file"/>
+                                        <field name="detailed_contract_type"/>
+                                    </group>
+                                    <group string="Thuế và lương (Việt Nam)">
+                                        <field name="personal_tax_code"/>
+                                        <field name="bhxh_salary"/>
+                                        <field name="net_salary"/>
+                                        <field name="year_income"/>
+                                        <field name="tax_deductions"/>
+                                    </group>
+                                    <group string="Hồ sơ BHXH (Việt Nam)">
+                                        <field name="bhxh_profile_status"/>
+                                        <field name="bhxh_transaction_code"/>
+                                        <field name="bhxh_profile_file"/>
+                                        <field name="bhxh_response_note"/>
+                                        <field name="bhxh_history_ids"/>
+                                    </group>
+                                    <group string="Dự án và kỹ năng (Việt Nam)">
+                                        <field name="project_ids" widget="many2many_tags"/>
+                                        <field name="project_role"/>
+                                        <field name="project_assignment_ids"/>
+                                        <field name="skill_ids"/>
+                                    </group>
+                                    <group string="Ca làm việc (Việt Nam)">
+                                        <field name="shift_ids"/>
+                                    </group>
+                                    <group string="Hợp đồng và thuế TNCN (Việt Nam)">
+                                        <field name="contract_ids"/>
+                                        <field name="personal_income_tax_ids"/>
+                                    </group>
                                 </group>
                             </page>
                             <page name="hr_settings" string="Settings" groups="hr.group_hr_user">

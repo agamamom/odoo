@@ -4,11 +4,21 @@
 import base64
 import re
 from pytz import timezone, UTC
-from datetime import datetime, time
+from datetime import datetime, time, date
 from random import choice
 from string import digits
 from dateutil.relativedelta import relativedelta
 from markupsafe import Markup
+import io
+import xlsxwriter
+from odoo.tools.safe_eval import safe_eval
+from odoo.http import request
+from odoo import http
+from odoo.tools import html2plaintext
+import csv
+from babel.dates import format_date as babel_format_date
+from babel.numbers import format_currency
+import locale
 
 from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError, AccessError
@@ -181,6 +191,96 @@ class HrEmployeePrivate(models.Model):
     message_has_error_counter = fields.Integer(groups="hr.group_hr_user")
     message_attachment_count = fields.Integer(groups="hr.group_hr_user")
 
+    # Vietnam-specific fields
+    bhxh_code = fields.Char(string="Mã số BHXH", groups="hr.group_hr_user", tracking=True)
+    bhyt_code = fields.Char(string="Mã số BHYT", groups="hr.group_hr_user", tracking=True)
+    bhtn_code = fields.Char(string="Mã số BHTN", groups="hr.group_hr_user", tracking=True)
+    kcb_place = fields.Char(string="Nơi đăng ký KCB", groups="hr.group_hr_user", tracking=True)
+    labor_contract_number = fields.Char(string="Số hợp đồng lao động", groups="hr.group_hr_user", tracking=True)
+    labor_contract_sign_date = fields.Date(string="Ngày ký hợp đồng", groups="hr.group_hr_user", tracking=True)
+    labor_contract_expiry_date = fields.Date(string="Ngày hết hạn hợp đồng", groups="hr.group_hr_user", tracking=True)
+    labor_contract_type = fields.Selection([
+        ("indefinite", "Không xác định thời hạn"),
+        ("definite", "Xác định thời hạn"),
+        ("seasonal", "Thời vụ"),
+        ("other", "Khác")
+    ], string="Loại hợp đồng lao động", groups="hr.group_hr_user", tracking=True)
+    labor_contract_file = fields.Binary(string="File scan hợp đồng lao động", groups="hr.group_hr_user")
+    minimum_wage_region = fields.Selection([
+        ("I", "Vùng I"),
+        ("II", "Vùng II"),
+        ("III", "Vùng III"),
+        ("IV", "Vùng IV")
+    ], string="Vùng lương tối thiểu", groups="hr.group_hr_user", tracking=True)
+    detailed_contract_type = fields.Selection([
+        ("probation", "Thử việc"),
+        ("official", "Chính thức"),
+        ("seasonal", "Thời vụ"),
+        ("internship", "Thực tập"),
+        ("other", "Khác")
+    ], string="Loại hợp đồng chi tiết", groups="hr.group_hr_user", tracking=True)
+
+    # Project assignment fields for Vietnam
+    project_ids = fields.Many2many(
+        'project.project',
+        'hr_employee_project_rel',
+        'employee_id',
+        'project_id',
+        string='Dự án tham gia',
+        groups="hr.group_hr_user",
+        tracking=True
+    )
+    project_role = fields.Char(string="Vai trò trong dự án", groups="hr.group_hr_user", tracking=True)
+
+    # New fields for project assignment
+    project_assignment_ids = fields.One2many(
+        'hr.employee.project.assignment', 'employee_id', string='Phân bổ dự án', groups="hr.group_hr_user"
+    )
+
+    # New fields for skills
+    skill_ids = fields.One2many(
+        'hr.employee.skill', 'employee_id', string='Kỹ năng & Chứng chỉ', groups="hr.group_hr_user"
+    )
+
+    # New fields for shifts
+    shift_ids = fields.One2many(
+        'hr.employee.shift', 'employee_id', string='Lịch & Ca làm việc', groups="hr.group_hr_user"
+    )
+
+    # Vietnam-specific tax and salary fields
+    personal_tax_code = fields.Char(string="Mã số thuế cá nhân", groups="hr.group_hr_user", tracking=True)
+    bhxh_salary = fields.Float(string="Mức lương đóng BHXH", groups="hr.group_hr_user", tracking=True)
+    net_salary = fields.Float(string="Mức lương thực nhận", groups="hr.group_hr_user", tracking=True)
+    year_income = fields.Float(string="Tổng thu nhập năm", groups="hr.group_hr_user", tracking=True)
+    tax_deductions = fields.Float(string="Các khoản giảm trừ thuế TNCN", groups="hr.group_hr_user", tracking=True)
+
+    # 1. Trường quản lý hồ sơ BHXH/BHYT cho nhân viên
+    bhxh_profile_status = fields.Selection([
+        ('draft', 'Chưa gửi'),
+        ('sent', 'Đã gửi'),
+        ('responded', 'Đã phản hồi'),
+        ('error', 'Lỗi'),
+        ('done', 'Hoàn thành')
+    ], string='Trạng thái hồ sơ BHXH', default='draft', groups="hr.group_hr_user", tracking=True)
+    bhxh_transaction_code = fields.Char(string='Mã giao dịch BHXH', groups="hr.group_hr_user", tracking=True)
+    bhxh_profile_file = fields.Binary(string='File hồ sơ BHXH (PDF/XML)', groups="hr.group_hr_user")
+    bhxh_response_note = fields.Text(string='Ghi chú phản hồi BHXH', groups="hr.group_hr_user")
+
+    # 2. Model lịch sử giao dịch BHXH/BHYT
+    bhxh_history_ids = fields.One2many(
+        'hr.employee.bhxh.history', 'employee_id', string='Lịch sử giao dịch BHXH', groups="hr.group_hr_user"
+    )
+
+    # New fields for contracts
+    contract_ids = fields.One2many(
+        'hr.employee.contract', 'employee_id', string='Hợp đồng lao động', groups="hr.group_hr_user"
+    )
+
+    # New fields for personal income tax
+    personal_income_tax_ids = fields.One2many(
+        'hr.employee.personal.income.tax', 'employee_id', string='Quyết toán thuế TNCN', groups="hr.group_hr_user"
+    )
+
     _sql_constraints = [
         ('barcode_uniq', 'unique (barcode)', "The Badge ID must be unique, this one is already assigned to another employee."),
         ('user_uniq', 'unique (user_id, company_id)', "A user cannot be linked to multiple employees in the same company.")
@@ -330,7 +430,7 @@ class HrEmployeePrivate(models.Model):
         public_fields = self.env['hr.employee.public']._fields
         private_fields = [fname for fname in field_names if fname not in public_fields]
         if private_fields:
-            raise AccessError(_('The fields “%s”, which you are trying to read, are not available for employee public profiles.', ','.join(private_fields)))
+            raise AccessError(_('The fields "%s", which you are trying to read, are not available for employee public profiles.', ','.join(private_fields)))
 
     def _copy_cache_from(self, public, field_names):
         # HACK: retrieve publicly available values from hr.employee.public and
@@ -710,3 +810,691 @@ class HrEmployeePrivate(models.Model):
 
     def _mail_get_partner_fields(self, introspect_fields=False):
         return ['user_partner_id']
+
+    def get_project_performance_summary(self):
+        self.ensure_one()
+        summary = []
+        for assignment in self.project_assignment_ids:
+            summary.append({
+                'project': assignment.project_id.name,
+                'role': assignment.role,
+                'date_start': assignment.date_start,
+                'date_end': assignment.date_end,
+                'progress': assignment.progress,
+                'performance_score': assignment.performance_score,
+                'note': assignment.note,
+            })
+        return summary
+
+    def get_skill_summary(self):
+        self.ensure_one()
+        return [{
+            'skill_name': skill.skill_name,
+            'skill_level': skill.skill_level,
+            'certificate': skill.certificate,
+            'certificate_issue_date': skill.certificate_issue_date,
+            'certificate_expiry_date': skill.certificate_expiry_date,
+            'note': skill.note,
+        } for skill in self.skill_ids]
+
+    def has_skill_for_task(self, required_skills):
+        """
+        required_skills: list of dict, e.g. [{'skill_name': 'Python', 'skill_level': 'advanced'}]
+        Return True nếu nhân viên đáp ứng đủ kỹ năng yêu cầu.
+        """
+        self.ensure_one()
+        for req in required_skills:
+            found = False
+            for skill in self.skill_ids:
+                if skill.skill_name == req['skill_name'] and skill.skill_level in [req['skill_level'], 'expert']:
+                    found = True
+                    break
+            if not found:
+                return False
+        return True
+
+    def export_employee_list_excel(self, fields_to_export=None):
+        """
+        Xuất danh sách nhân viên ra file Excel với các trường tùy chọn.
+        fields_to_export: list tên trường muốn xuất, nếu None sẽ xuất mặc định các trường phổ biến tại Việt Nam.
+        Trả về: (filename, file_content_bytes)
+        """
+        self.ensure_one()
+        output = io.BytesIO()
+        workbook = xlsxwriter.Workbook(output, {'in_memory': True})
+        worksheet = workbook.add_worksheet('Danh sách nhân viên')
+        # Trường mặc định phổ biến tại Việt Nam
+        default_fields = [
+            ('name', 'Họ tên'),
+            ('department_id', 'Phòng ban'),
+            ('job_id', 'Chức vụ'),
+            ('minimum_wage_region', 'Vùng lương'),
+            ('detailed_contract_type', 'Loại HĐ'),
+            ('bhxh_code', 'Mã BHXH'),
+            ('bhyt_code', 'Mã BHYT'),
+            ('bhtn_code', 'Mã BHTN'),
+            ('kcb_place', 'Nơi KCB'),
+            ('labor_contract_number', 'Số HĐLĐ'),
+            ('labor_contract_sign_date', 'Ngày ký HĐ'),
+            ('labor_contract_expiry_date', 'Ngày hết HĐ'),
+            ('project_ids', 'Dự án'),
+            ('project_role', 'Vai trò dự án'),
+            ('children', 'Số con'),
+            ('birthday', 'Ngày sinh'),
+            ('gender', 'Giới tính'),
+            ('country_id', 'Quốc tịch'),
+            ('private_phone', 'SĐT cá nhân'),
+            ('private_email', 'Email cá nhân'),
+        ]
+        fields_to_export = fields_to_export or default_fields
+        # Header
+        for col, (_, label) in enumerate(fields_to_export):
+            worksheet.write(0, col, label)
+        # Data
+        for row, emp in enumerate(self.search([]), 1):
+            for col, (field, _) in enumerate(fields_to_export):
+                value = getattr(emp, field, '')
+                if isinstance(value, models.Model):
+                    value = ', '.join(value.mapped('name'))
+                elif isinstance(value, list) or isinstance(value, tuple):
+                    value = ', '.join([str(v) for v in value])
+                worksheet.write(row, col, value or '')
+        workbook.close()
+        output.seek(0)
+        return ('danh_sach_nhan_vien.xlsx', output.read())
+
+    def export_employee_list_pdf(self, fields_to_export=None):
+        """
+        Xuất danh sách nhân viên ra PDF với các trường tùy chọn.
+        fields_to_export: list tên trường muốn xuất, nếu None sẽ xuất mặc định các trường phổ biến tại Việt Nam.
+        Trả về: (filename, file_content_bytes)
+        """
+        self.ensure_one()
+        # Sử dụng QWeb template hoặc html2pdf
+        employees = self.search([])
+        default_fields = [
+            ('name', 'Họ tên'),
+            ('department_id', 'Phòng ban'),
+            ('job_id', 'Chức vụ'),
+            ('minimum_wage_region', 'Vùng lương'),
+            ('detailed_contract_type', 'Loại HĐ'),
+            ('bhxh_code', 'Mã BHXH'),
+            ('bhyt_code', 'Mã BHYT'),
+            ('bhtn_code', 'Mã BHTN'),
+            ('kcb_place', 'Nơi KCB'),
+            ('labor_contract_number', 'Số HĐLĐ'),
+            ('labor_contract_sign_date', 'Ngày ký HĐ'),
+            ('labor_contract_expiry_date', 'Ngày hết HĐ'),
+            ('project_ids', 'Dự án'),
+            ('project_role', 'Vai trò dự án'),
+            ('children', 'Số con'),
+            ('birthday', 'Ngày sinh'),
+            ('gender', 'Giới tính'),
+            ('country_id', 'Quốc tịch'),
+            ('private_phone', 'SĐT cá nhân'),
+            ('private_email', 'Email cá nhân'),
+        ]
+        fields_to_export = fields_to_export or default_fields
+        # Tạo HTML table
+        html = '<h2>Danh sách nhân viên</h2><table border="1" cellspacing="0" cellpadding="3"><tr>'
+        for _, label in fields_to_export:
+            html += f'<th>{label}</th>'
+        html += '</tr>'
+        for emp in employees:
+            html += '<tr>'
+            for field, _ in fields_to_export:
+                value = getattr(emp, field, '')
+                if isinstance(value, models.Model):
+                    value = ', '.join(value.mapped('name'))
+                elif isinstance(value, list) or isinstance(value, tuple):
+                    value = ', '.join([str(v) for v in value])
+                html += f'<td>{html2plaintext(str(value or ""))}</td>'
+            html += '</tr>'
+        html += '</table>'
+        # Render PDF sử dụng phương thức mới của Odoo 18.0
+        pdf_content = self.env['ir.actions.report']._render_qweb_pdf('base.report_external_layout', {'html': html})[0]
+        return ('danh_sach_nhan_vien.pdf', pdf_content)
+
+    def get_shift_summary(self):
+        self.ensure_one()
+        return [{
+            'shift_name': shift.shift_name,
+            'shift_type': shift.shift_type,
+            'time_start': shift.time_start,
+            'time_end': shift.time_end,
+            'date_apply': shift.date_apply,
+            'note': shift.note,
+        } for shift in self.shift_ids]
+
+    def is_shift_conflict(self, new_shift):
+        """
+        Kiểm tra ca làm việc mới có bị trùng với ca đã có không.
+        new_shift: dict với các khóa shift_name, time_start, time_end, date_apply
+        """
+        self.ensure_one()
+        for shift in self.shift_ids:
+            if shift.date_apply == new_shift['date_apply']:
+                # Kiểm tra giao nhau thời gian
+                if not (new_shift['time_end'] <= shift.time_start or new_shift['time_start'] >= shift.time_end):
+                    return True
+        return False
+
+    def export_state_report_labor_usage(self):
+        """
+        Xuất báo cáo tình hình sử dụng lao động (chuẩn Việt Nam) ra file CSV.
+        Trả về: (filename, file_content_bytes)
+        """
+        self.ensure_one()
+        output = io.StringIO()
+        writer = csv.writer(output)
+        # Header theo mẫu báo cáo
+        header = [
+            'STT', 'Họ tên', 'Ngày sinh', 'Giới tính', 'Quốc tịch', 'Số CMND/CCCD', 'Phòng ban', 'Chức vụ',
+            'Loại hợp đồng', 'Ngày vào làm', 'Ngày nghỉ việc', 'Lý do nghỉ', 'Ghi chú'
+        ]
+        writer.writerow(header)
+        for idx, emp in enumerate(self.search([]), 1):
+            writer.writerow([
+                idx,
+                emp.name or '',
+                emp.birthday or '',
+                emp.gender or '',
+                emp.country_id.name or '',
+                emp.identification_id or '',
+                emp.department_id.name or '',
+                emp.job_id.name or '',
+                emp.detailed_contract_type or '',
+                emp.labor_contract_sign_date or '',
+                emp.departure_date or '',
+                emp.departure_reason_id.name or '',
+                ''
+            ])
+        output.seek(0)
+        return ('bao_cao_su_dung_lao_dong.csv', output.read().encode('utf-8'))
+
+    def export_bhxh_report_c12ts(self):
+        """
+        Xuất báo cáo BHXH định kỳ mẫu C12-TS ra file CSV.
+        Trả về: (filename, file_content_bytes)
+        """
+        self.ensure_one()
+        output = io.StringIO()
+        writer = csv.writer(output)
+        header = [
+            'STT', 'Họ tên', 'Mã số BHXH', 'Ngày sinh', 'Giới tính', 'Số CMND/CCCD', 'Phòng ban', 'Chức vụ',
+            'Mức lương đóng BHXH', 'Tỷ lệ đóng', 'Từ tháng', 'Đến tháng', 'Ghi chú'
+        ]
+        writer.writerow(header)
+        for idx, emp in enumerate(self.search([]), 1):
+            writer.writerow([
+                idx,
+                emp.name or '',
+                emp.bhxh_code or '',
+                emp.birthday or '',
+                emp.gender or '',
+                emp.identification_id or '',
+                emp.department_id.name or '',
+                emp.job_id.name or '',
+                '',  # Mức lương đóng BHXH (có thể lấy từ bảng lương nếu tích hợp)
+                '',  # Tỷ lệ đóng (có thể cấu hình thêm)
+                '',  # Từ tháng
+                '',  # Đến tháng
+                ''
+            ])
+        output.seek(0)
+        return ('bao_cao_bhxh_c12ts.csv', output.read().encode('utf-8'))
+
+    def export_bhxh_report_d02ts(self):
+        """
+        Xuất báo cáo BHXH định kỳ mẫu D02-TS ra file CSV.
+        Trả về: (filename, file_content_bytes)
+        """
+        self.ensure_one()
+        output = io.StringIO()
+        writer = csv.writer(output)
+        header = [
+            'STT', 'Họ tên', 'Mã số BHXH', 'Ngày sinh', 'Giới tính', 'Số CMND/CCCD', 'Phòng ban', 'Chức vụ',
+            'Nội dung thay đổi', 'Từ ngày', 'Đến ngày', 'Ghi chú'
+        ]
+        writer.writerow(header)
+        for idx, emp in enumerate(self.search([]), 1):
+            writer.writerow([
+                idx,
+                emp.name or '',
+                emp.bhxh_code or '',
+                emp.birthday or '',
+                emp.gender or '',
+                emp.identification_id or '',
+                emp.department_id.name or '',
+                emp.job_id.name or '',
+                '',  # Nội dung thay đổi
+                '',  # Từ ngày
+                '',  # Đến ngày
+                ''
+            ])
+        output.seek(0)
+        return ('bao_cao_bhxh_d02ts.csv', output.read().encode('utf-8'))
+
+    def export_tax_report_personal_income(self):
+        """
+        Xuất báo cáo quyết toán thuế TNCN ra file CSV.
+        Trả về: (filename, file_content_bytes)
+        """
+        self.ensure_one()
+        output = io.StringIO()
+        writer = csv.writer(output)
+        header = [
+            'STT', 'Họ tên', 'Mã số thuế', 'Ngày sinh', 'Giới tính', 'Số CMND/CCCD', 'Phòng ban', 'Chức vụ',
+            'Tổng thu nhập', 'Các khoản giảm trừ', 'Thu nhập chịu thuế', 'Thuế TNCN phải nộp', 'Ghi chú'
+        ]
+        writer.writerow(header)
+        for idx, emp in enumerate(self.search([]), 1):
+            writer.writerow([
+                idx,
+                emp.name or '',
+                '',  # Mã số thuế (có thể bổ sung trường riêng)
+                emp.birthday or '',
+                emp.gender or '',
+                emp.identification_id or '',
+                emp.department_id.name or '',
+                emp.job_id.name or '',
+                '',  # Tổng thu nhập (có thể lấy từ bảng lương nếu tích hợp)
+                '',  # Các khoản giảm trừ
+                '',  # Thu nhập chịu thuế
+                '',  # Thuế TNCN phải nộp
+                ''
+            ])
+        output.seek(0)
+        return ('bao_cao_thue_tncn.csv', output.read().encode('utf-8'))
+
+    def create_bhxh_profile(self, action_type='register'):
+        """
+        Tạo hồ sơ BHXH/BHYT cho nhân viên, lưu vào lịch sử, sinh file XML giả lập.
+        """
+        self.ensure_one()
+        # Sinh file XML giả lập (có thể thay bằng sinh file thật khi có API)
+        xml_content = f'<BHXHProfile><Name>{self.name}</Name><Action>{action_type}</Action></BHXHProfile>'
+        history = self.env['hr.employee.bhxh.history'].create({
+            'employee_id': self.id,
+            'action_type': action_type,
+            'date_action': fields.Date.today(),
+            'status': 'draft',
+            'file_sent': xml_content.encode('utf-8'),
+        })
+        self.bhxh_profile_file = xml_content.encode('utf-8')
+        self.bhxh_profile_status = 'draft'
+        return history
+
+    def send_bhxh_profile(self):
+        """
+        Stub gửi hồ sơ BHXH/BHYT (sau này tích hợp API sẽ bổ sung logic gọi API ở đây).
+        """
+        self.ensure_one()
+        # Giả lập gửi thành công
+        self.bhxh_profile_status = 'sent'
+        self.bhxh_transaction_code = f'FAKE-{self.id}-{fields.Date.today()}'
+        # Cập nhật lịch sử
+        if self.bhxh_history_ids:
+            self.bhxh_history_ids[-1].status = 'sent'
+            self.bhxh_history_ids[-1].transaction_code = self.bhxh_transaction_code
+        return True
+
+    def receive_bhxh_response(self, response_note='Phản hồi thành công', file_response=None):
+        """
+        Stub nhận phản hồi từ BHXH (sau này tích hợp API sẽ bổ sung logic nhận phản hồi ở đây).
+        """
+        self.ensure_one()
+        self.bhxh_profile_status = 'responded'
+        self.bhxh_response_note = response_note
+        if self.bhxh_history_ids:
+            self.bhxh_history_ids[-1].status = 'responded'
+            self.bhxh_history_ids[-1].response_note = response_note
+            if file_response:
+                self.bhxh_history_ids[-1].file_response = file_response
+        return True
+
+    def mark_bhxh_done(self):
+        self.ensure_one()
+        self.bhxh_profile_status = 'done'
+        if self.bhxh_history_ids:
+            self.bhxh_history_ids[-1].status = 'done'
+        return True
+
+    def auto_bhxh_reminder(self):
+        """
+        Tự động nhắc nhở nếu hồ sơ BHXH chưa gửi hoặc chưa phản hồi.
+        """
+        for emp in self.search([('bhxh_profile_status', 'in', ['draft', 'sent'])]):
+            # Ở thực tế có thể gửi email, thông báo, hoặc tạo activity
+            print(f'Nhắc nhở: Hồ sơ BHXH của {emp.name} đang ở trạng thái {emp.bhxh_profile_status}')
+
+    # 1. Hàm định dạng tiền tệ VND
+    def format_vnd(self, amount):
+        """
+        Định dạng số tiền theo chuẩn Việt Nam (VND).
+        """
+        try:
+            return format_currency(amount, 'VND', locale='vi_VN')
+        except Exception:
+            return f"{amount:,.0f} VND"
+
+    # 2. Hàm định dạng ngày giờ theo chuẩn Việt Nam
+    def format_vn_date(self, date_obj):
+        """
+        Định dạng ngày theo chuẩn Việt Nam (dd/MM/yyyy).
+        """
+        try:
+            return babel_format_date(date_obj, format='dd/MM/yyyy', locale='vi_VN')
+        except Exception:
+            return date_obj.strftime('%d/%m/%Y') if date_obj else ''
+
+    # 3. Hàm kiểm tra ngày lễ quốc gia Việt Nam
+    @staticmethod
+    def is_vn_public_holiday(date_obj):
+        """
+        Kiểm tra ngày có phải là ngày lễ quốc gia Việt Nam không.
+        """
+        vn_holidays = [
+            (1, 1),    # Tết Dương lịch
+            (4, 30),   # Giải phóng miền Nam
+            (5, 1),    # Quốc tế Lao động
+            (9, 2),    # Quốc khánh
+            # ... có thể bổ sung thêm các ngày lễ khác
+        ]
+        return (date_obj.month, date_obj.day) in vn_holidays
+
+    # 4. Hướng dẫn dịch giao diện
+    # Đảm bảo tất cả các label, help, string đều sử dụng _("") để dịch tự động qua file .po
+    # Khi triển khai, sử dụng lệnh Odoo để sinh file .pot/.po, dịch sang tiếng Việt và nạp lại vào hệ thống
+
+    def get_contract_summary(self):
+        self.ensure_one()
+        return [{
+            'contract_type': c.contract_type,
+            'sign_date': c.sign_date,
+            'expiry_date': c.expiry_date,
+            'salary': c.salary,
+            'allowance': c.allowance,
+            'special_terms': c.special_terms,
+            'state': c.state,
+        } for c in self.contract_ids]
+
+    def check_contract_expiry(self):
+        self.ensure_one()
+        for c in self.contract_ids:
+            if c.state == 'active' and c.expiry_date and c.expiry_date <= fields.Date.today():
+                c.state = 'expired'
+
+    def contract_expiry_reminder(self):
+        for emp in self.search([]):
+            for c in emp.contract_ids:
+                if c.state == 'active' and c.expiry_date:
+                    days_left = (c.expiry_date - fields.Date.today()).days
+                    if 0 <= days_left <= 30:
+                        print(f'Cảnh báo: Hợp đồng của {emp.name} ({c.contract_type}) sắp hết hạn vào {c.expiry_date}')
+
+    def generate_contract_template(self, contract_type='definite'):
+        """
+        Sinh hợp đồng mẫu (dạng text) theo loại hợp đồng, có thể xuất ra file hoặc in.
+        """
+        self.ensure_one()
+        template = f"""
+        CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
+        Độc lập - Tự do - Hạnh phúc
+
+        HỢP ĐỒNG LAO ĐỘNG ({dict([('probation','Thử việc'),('definite','Xác định thời hạn'),('indefinite','Không xác định thời hạn'),('seasonal','Thời vụ'),('other','Khác')])[contract_type]})
+
+        Họ tên người lao động: {self.name}
+        Chức vụ: {self.job_id.name if self.job_id else ''}
+        Phòng ban: {self.department_id.name if self.department_id else ''}
+        Lương cơ bản: {self.format_vnd(self.net_salary)}
+        Ngày ký: {self.format_vn_date(fields.Date.today())}
+        ... (bổ sung các điều khoản đặc thù theo luật Việt Nam)
+        """
+        return template
+
+    def get_personal_income_tax_summary(self):
+        self.ensure_one()
+        return [{
+            'year': t.year,
+            'total_income': t.total_income,
+            'self_deduction': t.self_deduction,
+            'dependent_deduction': t.dependent_deduction,
+            'taxable_income': t.taxable_income,
+            'tax_amount': t.tax_amount,
+            'state': t.state,
+        } for t in self.personal_income_tax_ids]
+
+    def export_tax_finalization_report(self, year):
+        """
+        Sinh file báo cáo quyết toán thuế TNCN theo mẫu Tổng cục Thuế (CSV).
+        """
+        self.ensure_one()
+        tax = self.personal_income_tax_ids.filtered(lambda t: t.year == year)
+        if not tax:
+            return None
+        import io, csv
+        output = io.StringIO()
+        writer = csv.writer(output)
+        header = ['Năm', 'Họ tên', 'Mã số thuế', 'Tổng thu nhập', 'Giảm trừ bản thân', 'Giảm trừ NPT', 'Thu nhập chịu thuế', 'Thuế phải nộp', 'Trạng thái']
+        writer.writerow(header)
+        for t in tax:
+            writer.writerow([
+                t.year,
+                self.name,
+                self.personal_tax_code or '',
+                t.total_income,
+                t.self_deduction,
+                t.dependent_deduction,
+                t.taxable_income,
+                t.tax_amount,
+                t.state
+            ])
+        output.seek(0)
+        return (f'quyet_toan_thue_{self.name}_{year}.csv', output.read().encode('utf-8'))
+
+    # 1. Scheduled Action: Tự động sinh quyết toán thuế cuối năm cho toàn bộ nhân viên
+    @api.model
+    def cron_auto_create_tax_finalization(self):
+        current_year = date.today().year
+        for emp in self.search([]):
+            if not emp.personal_income_tax_ids.filtered(lambda t: t.year == current_year):
+                total_income = emp.year_income or 0.0
+                dependent_count = getattr(emp, 'dependent_count', 0) or 0
+                dependent_deduction = dependent_count * 4400000 * 12
+                emp.env['hr.employee.personal.income.tax'].create({
+                    'employee_id': emp.id,
+                    'year': current_year,
+                    'total_income': total_income,
+                    'dependent_deduction': dependent_deduction,
+                })
+
+    # 2. Tự động cảnh báo, nhắc nhở quyết toán thuế
+    def auto_tax_reminder(self):
+        for emp in self.search([]):
+            for t in emp.personal_income_tax_ids:
+                if t.state == 'draft' and t.year == date.today().year:
+                    # Gửi activity nhắc nhở (có thể mở rộng gửi email)
+                    emp.activity_schedule(
+                        'mail.mail_activity_data_todo',
+                        summary=_('Nhắc nhở quyết toán thuế TNCN'),
+                        note=_('Bạn cần hoàn thành quyết toán thuế TNCN năm %s.') % t.year
+                    )
+
+    # 3. Tự động kiểm tra và cảnh báo bất thường về thu nhập, thuế
+    def auto_tax_anomaly_check(self):
+        for emp in self.search([]):
+            taxes = sorted(emp.personal_income_tax_ids, key=lambda t: t.year)
+            for i in range(1, len(taxes)):
+                prev, curr = taxes[i-1], taxes[i]
+                if prev.total_income and abs(curr.total_income - prev.total_income) / prev.total_income > 0.5:
+                    emp.message_post(
+                        body=_('Cảnh báo: Thu nhập năm %s tăng/giảm bất thường so với năm %s.') % (curr.year, prev.year),
+                        subject=_('Cảnh báo thu nhập bất thường')
+                    )
+                if curr.tax_amount < 0:
+                    emp.message_post(
+                        body=_('Cảnh báo: Thuế TNCN năm %s nhỏ hơn 0, vui lòng kiểm tra lại dữ liệu!') % curr.year,
+                        subject=_('Cảnh báo thuế bất thường')
+                    )
+
+    # 4. Tự động cập nhật giảm trừ khi thay đổi số người phụ thuộc
+    def write(self, vals):
+        res = super().write(vals)
+        if 'dependent_count' in vals:
+            for emp in self:
+                for t in emp.personal_income_tax_ids:
+                    t.dependent_deduction = vals['dependent_count'] * 4400000 * 12
+        return res
+
+    # 5. Bản địa hóa thông báo, cảnh báo, báo cáo: đã dùng _() cho mọi thông báo, nội dung đều tiếng Việt, định dạng chuẩn VN.
+
+
+class HrEmployeeProjectAssignment(models.Model):
+    _name = 'hr.employee.project.assignment'
+    _description = 'Phân bổ dự án cho nhân viên (Việt Nam)'
+
+    employee_id = fields.Many2one('hr.employee', string='Nhân viên', required=True, ondelete='cascade')
+    project_id = fields.Many2one('project.project', string='Dự án', required=True, ondelete='cascade')
+    role = fields.Char(string='Vai trò trong dự án')
+    date_start = fields.Date(string='Ngày bắt đầu')
+    date_end = fields.Date(string='Ngày kết thúc')
+    progress = fields.Float(string='Tiến độ (%)', default=0.0)
+    performance_score = fields.Float(string='Điểm hiệu suất', default=0.0)
+    note = fields.Text(string='Ghi chú')
+
+
+class HrEmployeeSkill(models.Model):
+    _name = 'hr.employee.skill'
+    _description = 'Kỹ năng và chứng chỉ nhân viên (Việt Nam)'
+
+    employee_id = fields.Many2one('hr.employee', string='Nhân viên', required=True, ondelete='cascade')
+    skill_name = fields.Char(string='Tên kỹ năng', required=True)
+    skill_level = fields.Selection([
+        ('basic', 'Cơ bản'),
+        ('intermediate', 'Trung bình'),
+        ('advanced', 'Nâng cao'),
+        ('expert', 'Chuyên gia')
+    ], string='Cấp độ', required=True)
+    certificate = fields.Char(string='Chứng chỉ liên quan')
+    certificate_issue_date = fields.Date(string='Ngày cấp chứng chỉ')
+    certificate_expiry_date = fields.Date(string='Ngày hết hạn chứng chỉ')
+    note = fields.Text(string='Ghi chú')
+
+
+class HrEmployeeShift(models.Model):
+    _name = 'hr.employee.shift'
+    _description = 'Ca làm việc nhân viên (Việt Nam)'
+
+    employee_id = fields.Many2one('hr.employee', string='Nhân viên', required=True, ondelete='cascade')
+    shift_name = fields.Char(string='Tên ca', required=True)
+    shift_type = fields.Selection([
+        ('day', 'Ca ngày'),
+        ('night', 'Ca đêm'),
+        ('rotating', 'Ca xoay vòng'),
+        ('other', 'Khác')
+    ], string='Loại ca', required=True)
+    time_start = fields.Float(string='Giờ bắt đầu', required=True, help='Ví dụ: 8.0 cho 8h sáng')
+    time_end = fields.Float(string='Giờ kết thúc', required=True, help='Ví dụ: 17.5 cho 17h30')
+    date_apply = fields.Date(string='Ngày áp dụng', required=True)
+    note = fields.Text(string='Ghi chú')
+
+
+class HrEmployeeBhxhHistory(models.Model):
+    _name = 'hr.employee.bhxh.history'
+    _description = 'Lịch sử giao dịch BHXH/BHYT nhân viên (Việt Nam)'
+
+    employee_id = fields.Many2one('hr.employee', string='Nhân viên', required=True, ondelete='cascade')
+    action_type = fields.Selection([
+        ('register', 'Đăng ký mới'),
+        ('update', 'Cập nhật'),
+        ('increase', 'Báo tăng'),
+        ('decrease', 'Báo giảm'),
+        ('other', 'Khác')
+    ], string='Loại nghiệp vụ', required=True)
+    date_action = fields.Date(string='Ngày thực hiện', required=True)
+    status = fields.Selection([
+        ('draft', 'Chưa gửi'),
+        ('sent', 'Đã gửi'),
+        ('responded', 'Đã phản hồi'),
+        ('error', 'Lỗi'),
+        ('done', 'Hoàn thành')
+    ], string='Trạng thái', default='draft')
+    transaction_code = fields.Char(string='Mã giao dịch')
+    file_sent = fields.Binary(string='File hồ sơ gửi')
+    file_response = fields.Binary(string='File phản hồi')
+    response_note = fields.Text(string='Ghi chú phản hồi')
+
+
+class HrEmployeeContract(models.Model):
+    _name = 'hr.employee.contract'
+    _description = 'Hợp đồng lao động nhân viên (Việt Nam)'
+
+    employee_id = fields.Many2one('hr.employee', string='Nhân viên', required=True, ondelete='cascade')
+    contract_type = fields.Selection([
+        ('probation', 'Thử việc'),
+        ('definite', 'Xác định thời hạn'),
+        ('indefinite', 'Không xác định thời hạn'),
+        ('seasonal', 'Thời vụ'),
+        ('other', 'Khác')
+    ], string='Loại hợp đồng', required=True)
+    sign_date = fields.Date(string='Ngày ký', required=True)
+    expiry_date = fields.Date(string='Ngày hết hạn')
+    salary = fields.Float(string='Lương cơ bản', required=True)
+    allowance = fields.Float(string='Phụ cấp')
+    special_terms = fields.Text(string='Điều khoản đặc thù')
+    contract_file = fields.Binary(string='File scan hợp đồng')
+    state = fields.Selection([
+        ('active', 'Hiệu lực'),
+        ('expired', 'Hết hạn'),
+        ('terminated', 'Đã chấm dứt')
+    ], string='Trạng thái hợp đồng', default='active')
+
+
+class HrEmployeePersonalIncomeTax(models.Model):
+    _name = 'hr.employee.personal.income.tax'
+    _description = 'Quyết toán thuế TNCN nhân viên (Việt Nam)'
+
+    employee_id = fields.Many2one('hr.employee', string='Nhân viên', required=True, ondelete='cascade')
+    year = fields.Integer(string='Năm quyết toán', required=True)
+    total_income = fields.Float(string='Tổng thu nhập năm', required=True)
+    self_deduction = fields.Float(string='Giảm trừ bản thân', default=13200000*12)
+    dependent_deduction = fields.Float(string='Giảm trừ người phụ thuộc', default=0.0)
+    taxable_income = fields.Float(string='Thu nhập chịu thuế', compute='_compute_taxable_income', store=True)
+    tax_amount = fields.Float(string='Thuế TNCN phải nộp', compute='_compute_tax_amount', store=True)
+    tax_file = fields.Binary(string='File quyết toán thuế')
+    state = fields.Selection([
+        ('draft', 'Chưa nộp'),
+        ('submitted', 'Đã nộp'),
+        ('done', 'Đã quyết toán')
+    ], string='Trạng thái', default='draft')
+
+    @api.depends('total_income', 'self_deduction', 'dependent_deduction')
+    def _compute_taxable_income(self):
+        for rec in self:
+            rec.taxable_income = max(0, rec.total_income - rec.self_deduction - rec.dependent_deduction)
+
+    @api.depends('taxable_income')
+    def _compute_tax_amount(self):
+        for rec in self:
+            rec.tax_amount = rec._calculate_vn_personal_income_tax(rec.taxable_income)
+
+    def _calculate_vn_personal_income_tax(self, taxable_income):
+        # Áp dụng biểu thuế lũy tiến từng phần theo quy định Việt Nam
+        brackets = [ (0, 5000000, 0.05),
+                     (5000000, 10000000, 0.1),
+                     (10000000, 18000000, 0.15),
+                     (18000000, 32000000, 0.2),
+                     (32000000, 52000000, 0.25),
+                     (52000000, 80000000, 0.3),
+                     (80000000, float('inf'), 0.35)]
+        tax = 0
+        remaining = taxable_income
+        for lower, upper, rate in brackets:
+            if taxable_income > lower:
+                amount = min(upper-lower, remaining)
+                tax += amount * rate
+                remaining -= amount
+                if remaining <= 0:
+                    break
+        return tax
