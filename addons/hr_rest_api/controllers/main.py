@@ -430,7 +430,7 @@ class HrRestApiController(http.Controller):
         fields = [
             'id', 'name', 'expected_employees', 'no_of_employee',
             'no_of_recruitment', 'no_of_hired_employee', 'department_id', 
-            'description', 'requirements', 'company_id', 'state'
+            'description', 'requirements', 'company_id', 'active'
         ]
         
         result = self._handle_request(
@@ -453,7 +453,7 @@ class HrRestApiController(http.Controller):
         fields = [
             'id', 'name', 'expected_employees', 'no_of_employee',
             'no_of_recruitment', 'no_of_hired_employee', 'department_id', 
-            'description', 'requirements', 'company_id', 'state'
+            'description', 'requirements', 'company_id', 'active'
         ]
         
         result = self._handle_request(
