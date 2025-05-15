@@ -44,11 +44,10 @@ headers = {
 }
 params = {
     'limit': 100,
-    'offset': 0
+    'offset': 0,
+    'order': 'id'
 }
 
 response = requests.get(url, headers=headers, params=params)
-if response.status_code == 200:
-    print("Employees: ", response.json())
-else:
-    print("Error: ", response.status_code, response.text)
+print("Status Code:", response.status_code)
+print("Response:", response.text)

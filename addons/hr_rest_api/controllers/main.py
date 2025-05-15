@@ -1,5 +1,5 @@
 from odoo import http
-from odoo.http import request
+from odoo.http import request, Response
 import json
 from werkzeug.exceptions import BadRequest
 
@@ -18,6 +18,22 @@ class HrRestApiController(http.Controller):
             return False, {"error": "Invalid API Key"}
         
         return True, user
+    
+    def _add_cors_headers(self, response):
+        """Add CORS headers to the response"""
+        # For development, use '*' to allow all origins; for production, specify exact origins
+        allowed_origins = ['http://localhost:5000']  # Replace with your Flutter app's origin
+        origin = request.httprequest.headers.get('Origin', '*')
+        response.headers.set('Access-Control-Allow-Origin', origin if origin in allowed_origins else '*')
+        response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        response.headers.set('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, API-Key')
+        response.headers.set('Access-Control-Max-Age', '86400')  # 24 hours cache for preflight requests
+        return response
+    
+    def _handle_options_request(self):
+        """Handle OPTIONS preflight requests"""
+        response = Response(status=200)
+        return self._add_cors_headers(response)
     
     def _handle_request(self, model, fields, domain=None, limit=100, offset=0, order=None):
         """Common method to handle API requests"""
@@ -133,6 +149,42 @@ class HrRestApiController(http.Controller):
                 'error': str(e)
             }
     
+    # CORS preflight OPTIONS handling for each route pattern
+    @http.route(['/api/hr/employees', '/api/hr/employees/<int:employee_id>'], type='http', auth='public', methods=['OPTIONS'], csrf=False)
+    def options_employees(self, **kw):
+        """Handle OPTIONS request for employees endpoints"""
+        return self._handle_options_request()
+    
+    @http.route(['/api/hr/departments', '/api/hr/departments/<int:department_id>'], type='http', auth='public', methods=['OPTIONS'], csrf=False)
+    def options_departments(self, **kw):
+        """Handle OPTIONS request for departments endpoints"""
+        return self._handle_options_request()
+    
+    @http.route(['/api/hr/jobs', '/api/hr/jobs/<int:job_id>'], type='http', auth='public', methods=['OPTIONS'], csrf=False)
+    def options_jobs(self, **kw):
+        """Handle OPTIONS request for jobs endpoints"""
+        return self._handle_options_request()
+    
+    @http.route(['/api/hr/employee_categories'], type='http', auth='public', methods=['OPTIONS'], csrf=False)
+    def options_employee_categories(self, **kw):
+        """Handle OPTIONS request for employee categories endpoints"""
+        return self._handle_options_request()
+    
+    @http.route(['/api/hr/work_locations'], type='http', auth='public', methods=['OPTIONS'], csrf=False)
+    def options_work_locations(self, **kw):
+        """Handle OPTIONS request for work locations endpoints"""
+        return self._handle_options_request()
+    
+    @http.route(['/api/hr/departure_reasons'], type='http', auth='public', methods=['OPTIONS'], csrf=False)
+    def options_departure_reasons(self, **kw):
+        """Handle OPTIONS request for departure reasons endpoints"""
+        return self._handle_options_request()
+    
+    @http.route(['/api/hr/resource_calendars'], type='http', auth='public', methods=['OPTIONS'], csrf=False)
+    def options_resource_calendars(self, **kw):
+        """Handle OPTIONS request for resource calendars endpoints"""
+        return self._handle_options_request()
+    
     # Employee endpoints
     @http.route('/api/hr/employees', type='http', auth='public', methods=['GET'], csrf=False)
     def get_employees(self, **kw):
@@ -156,10 +208,11 @@ class HrRestApiController(http.Controller):
             order=order
         )
         
-        return request.make_response(
+        response = request.make_response(
             json.dumps(result),
             headers=[('Content-Type', 'application/json')]
         )
+        return self._add_cors_headers(response)
     
     @http.route('/api/hr/employees/<int:employee_id>', type='http', auth='public', methods=['GET'], csrf=False)
     def get_employee(self, employee_id, **kw):
@@ -180,10 +233,11 @@ class HrRestApiController(http.Controller):
         if result.get('success') and result.get('count') > 0:
             result['data'] = result['data'][0]
         
-        return request.make_response(
+        response = request.make_response(
             json.dumps(result),
             headers=[('Content-Type', 'application/json')]
         )
+        return self._add_cors_headers(response)
     
     @http.route('/api/hr/employees', type='json', auth='public', methods=['POST'], csrf=False)
     def create_employee(self, **kw):
@@ -196,17 +250,25 @@ class HrRestApiController(http.Controller):
         required_fields = ['name']
         for field in required_fields:
             if field not in data:
-                return {
-                    'success': False,
-                    'error': f'Missing required field: {field}'
-                }
+                response = request.make_response(
+                    json.dumps({
+                        'success': False,
+                        'error': f'Missing required field: {field}'
+                    }),
+                    headers=[('Content-Type', 'application/json')]
+                )
+                return self._add_cors_headers(response)
         
         result = self._handle_create(
             model='hr.employee',
             data=data
         )
         
-        return result
+        response = request.make_response(
+            json.dumps(result),
+            headers=[('Content-Type', 'application/json')]
+        )
+        return self._add_cors_headers(response)
     
     @http.route('/api/hr/employees/<int:employee_id>', type='json', auth='public', methods=['PUT'], csrf=False)
     def update_employee(self, employee_id, **kw):
@@ -222,7 +284,11 @@ class HrRestApiController(http.Controller):
             data=data
         )
         
-        return result
+        response = request.make_response(
+            json.dumps(result),
+            headers=[('Content-Type', 'application/json')]
+        )
+        return self._add_cors_headers(response)
     
     @http.route('/api/hr/employees/<int:employee_id>', type='http', auth='public', methods=['DELETE'], csrf=False)
     def delete_employee(self, employee_id, **kw):
@@ -232,10 +298,11 @@ class HrRestApiController(http.Controller):
             record_id=employee_id
         )
         
-        return request.make_response(
+        response = request.make_response(
             json.dumps(result),
             headers=[('Content-Type', 'application/json')]
         )
+        return self._add_cors_headers(response)
     
     # Department endpoints
     @http.route('/api/hr/departments', type='http', auth='public', methods=['GET'], csrf=False)
@@ -258,10 +325,11 @@ class HrRestApiController(http.Controller):
             order=order
         )
         
-        return request.make_response(
+        response = request.make_response(
             json.dumps(result),
             headers=[('Content-Type', 'application/json')]
         )
+        return self._add_cors_headers(response)
     
     @http.route('/api/hr/departments/<int:department_id>', type='http', auth='public', methods=['GET'], csrf=False)
     def get_department(self, department_id, **kw):
@@ -280,10 +348,11 @@ class HrRestApiController(http.Controller):
         if result.get('success') and result.get('count') > 0:
             result['data'] = result['data'][0]
         
-        return request.make_response(
+        response = request.make_response(
             json.dumps(result),
             headers=[('Content-Type', 'application/json')]
         )
+        return self._add_cors_headers(response)
     
     @http.route('/api/hr/departments', type='json', auth='public', methods=['POST'], csrf=False)
     def create_department(self, **kw):
@@ -296,17 +365,25 @@ class HrRestApiController(http.Controller):
         required_fields = ['name']
         for field in required_fields:
             if field not in data:
-                return {
-                    'success': False,
-                    'error': f'Missing required field: {field}'
-                }
+                response = request.make_response(
+                    json.dumps({
+                        'success': False,
+                        'error': f'Missing required field: {field}'
+                    }),
+                    headers=[('Content-Type', 'application/json')]
+                )
+                return self._add_cors_headers(response)
         
         result = self._handle_create(
             model='hr.department',
             data=data
         )
         
-        return result
+        response = request.make_response(
+            json.dumps(result),
+            headers=[('Content-Type', 'application/json')]
+        )
+        return self._add_cors_headers(response)
     
     @http.route('/api/hr/departments/<int:department_id>', type='json', auth='public', methods=['PUT'], csrf=False)
     def update_department(self, department_id, **kw):
@@ -322,7 +399,11 @@ class HrRestApiController(http.Controller):
             data=data
         )
         
-        return result
+        response = request.make_response(
+            json.dumps(result),
+            headers=[('Content-Type', 'application/json')]
+        )
+        return self._add_cors_headers(response)
     
     @http.route('/api/hr/departments/<int:department_id>', type='http', auth='public', methods=['DELETE'], csrf=False)
     def delete_department(self, department_id, **kw):
@@ -332,10 +413,11 @@ class HrRestApiController(http.Controller):
             record_id=department_id
         )
         
-        return request.make_response(
+        response = request.make_response(
             json.dumps(result),
             headers=[('Content-Type', 'application/json')]
         )
+        return self._add_cors_headers(response)
     
     # Job position endpoints
     @http.route('/api/hr/jobs', type='http', auth='public', methods=['GET'], csrf=False)
@@ -359,10 +441,11 @@ class HrRestApiController(http.Controller):
             order=order
         )
         
-        return request.make_response(
+        response = request.make_response(
             json.dumps(result),
             headers=[('Content-Type', 'application/json')]
         )
+        return self._add_cors_headers(response)
     
     @http.route('/api/hr/jobs/<int:job_id>', type='http', auth='public', methods=['GET'], csrf=False)
     def get_job(self, job_id, **kw):
@@ -382,10 +465,11 @@ class HrRestApiController(http.Controller):
         if result.get('success') and result.get('count') > 0:
             result['data'] = result['data'][0]
         
-        return request.make_response(
+        response = request.make_response(
             json.dumps(result),
             headers=[('Content-Type', 'application/json')]
         )
+        return self._add_cors_headers(response)
     
     @http.route('/api/hr/jobs', type='json', auth='public', methods=['POST'], csrf=False)
     def create_job(self, **kw):
@@ -398,17 +482,25 @@ class HrRestApiController(http.Controller):
         required_fields = ['name']
         for field in required_fields:
             if field not in data:
-                return {
-                    'success': False,
-                    'error': f'Missing required field: {field}'
-                }
+                response = request.make_response(
+                    json.dumps({
+                        'success': False,
+                        'error': f'Missing required field: {field}'
+                    }),
+                    headers=[('Content-Type', 'application/json')]
+                )
+                return self._add_cors_headers(response)
         
         result = self._handle_create(
             model='hr.job',
             data=data
         )
         
-        return result
+        response = request.make_response(
+            json.dumps(result),
+            headers=[('Content-Type', 'application/json')]
+        )
+        return self._add_cors_headers(response)
     
     @http.route('/api/hr/jobs/<int:job_id>', type='json', auth='public', methods=['PUT'], csrf=False)
     def update_job(self, job_id, **kw):
@@ -424,7 +516,11 @@ class HrRestApiController(http.Controller):
             data=data
         )
         
-        return result
+        response = request.make_response(
+            json.dumps(result),
+            headers=[('Content-Type', 'application/json')]
+        )
+        return self._add_cors_headers(response)
     
     @http.route('/api/hr/jobs/<int:job_id>', type='http', auth='public', methods=['DELETE'], csrf=False)
     def delete_job(self, job_id, **kw):
@@ -434,10 +530,11 @@ class HrRestApiController(http.Controller):
             record_id=job_id
         )
         
-        return request.make_response(
+        response = request.make_response(
             json.dumps(result),
             headers=[('Content-Type', 'application/json')]
         )
+        return self._add_cors_headers(response)
     
     # Employee categories/tags endpoints
     @http.route('/api/hr/employee_categories', type='http', auth='public', methods=['GET'], csrf=False)
@@ -457,10 +554,11 @@ class HrRestApiController(http.Controller):
             order=order
         )
         
-        return request.make_response(
+        response = request.make_response(
             json.dumps(result),
             headers=[('Content-Type', 'application/json')]
         )
+        return self._add_cors_headers(response)
     
     # Work location endpoints
     @http.route('/api/hr/work_locations', type='http', auth='public', methods=['GET'], csrf=False)
@@ -480,10 +578,11 @@ class HrRestApiController(http.Controller):
             order=order
         )
         
-        return request.make_response(
+        response = request.make_response(
             json.dumps(result),
             headers=[('Content-Type', 'application/json')]
         )
+        return self._add_cors_headers(response)
     
     # Departure reason endpoints
     @http.route('/api/hr/departure_reasons', type='http', auth='public', methods=['GET'], csrf=False)
@@ -503,10 +602,11 @@ class HrRestApiController(http.Controller):
             order=order
         )
         
-        return request.make_response(
+        response = request.make_response(
             json.dumps(result),
             headers=[('Content-Type', 'application/json')]
         )
+        return self._add_cors_headers(response)
     
     # Resource calendar endpoints
     @http.route('/api/hr/resource_calendars', type='http', auth='public', methods=['GET'], csrf=False)
@@ -529,7 +629,8 @@ class HrRestApiController(http.Controller):
             order=order
         )
         
-        return request.make_response(
+        response = request.make_response(
             json.dumps(result),
             headers=[('Content-Type', 'application/json')]
-        ) 
+        )
+        return self._add_cors_headers(response)
