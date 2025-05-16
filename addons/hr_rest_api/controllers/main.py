@@ -155,6 +155,11 @@ class HrRestApiController(http.Controller):
         """Handle OPTIONS request for employees endpoints"""
         return self._handle_options_request()
     
+    @http.route(['/api/hr/employees', '/api/hr/employees/<int:department_id>'], type='http', auth='public', methods=['OPTIONS'], csrf=False)
+    def options_department_employees(self, **kw):
+        """Handle OPTIONS request for employees endpoints"""
+        return self._handle_options_request()
+
     @http.route(['/api/hr/departments', '/api/hr/departments/<int:department_id>'], type='http', auth='public', methods=['OPTIONS'], csrf=False)
     def options_departments(self, **kw):
         """Handle OPTIONS request for departments endpoints"""
@@ -183,6 +188,11 @@ class HrRestApiController(http.Controller):
     @http.route(['/api/hr/resource_calendars'], type='http', auth='public', methods=['OPTIONS'], csrf=False)
     def options_resource_calendars(self, **kw):
         """Handle OPTIONS request for resource calendars endpoints"""
+        return self._handle_options_request()
+    
+    @http.route(['/api/hr/employees/department/<int:department_id>'], type='http', auth='public', methods=['OPTIONS'], csrf=False)
+    def options_employees_by_department(self, **kw):
+        """Handle OPTIONS request for employees by department endpoint"""
         return self._handle_options_request()
     
     # Employee endpoints
@@ -860,3 +870,31 @@ class HrRestApiController(http.Controller):
         filename, file_content = employees.export_employee_list_pdf(fields_to_export)
         response = request.make_response(file_content, headers=[('Content-Type', 'application/pdf'), ('Content-Disposition', f'attachment; filename={filename}')])
         return self._add_cors_headers(response)
+
+    @http.route('/api/hr/employees/department/<int:department_id>', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_employees_by_department(self, department_id, **kw):
+        """Get employees by department"""
+        limit = int(kw.get('limit', 100))
+        offset = int(kw.get('offset', 0))
+        order = kw.get('order', 'id')
+        fields = [
+            'id', 'name', 'job_title', 'department_id', 'work_phone', 
+            'mobile_phone', 'work_email', 'job_id', 'address_id',
+            'work_location_id', 'parent_id', 'coach_id', 'category_ids',
+            'resource_calendar_id', 'company_id', 'active'
+        ]
+        result = self._handle_request(
+            model='hr.employee',
+            fields=fields,
+            domain=[('department_id', '=', department_id)],
+            limit=limit,
+            offset=offset,
+            order=order
+        )
+        response = request.make_response(
+            json.dumps(result),
+            headers=[('Content-Type', 'application/json')]
+        )
+        return self._add_cors_headers(response)
+    
+    
