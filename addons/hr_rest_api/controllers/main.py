@@ -1131,9 +1131,36 @@ class HrRestApiController(http.Controller):
         response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
         return self._add_cors_headers(response)
 
-    @http.route('/api/hr/employees/<int:employee_id>/avatar', type='http', auth='public', methods=['OPTIONS'], csrf=False)
+    @http.route('/api/hr/employees/<int:employee_id>/avatar', type='json', auth='public', methods=['OPTIONS'], csrf=False)
     def options_employee_avatar(self, employee_id, **kw):
         """Handle OPTIONS request for employee avatar endpoint"""
         return self._handle_options_request()
     
-    
+    @http.route('/api/hr/employees/find_by_email', type='http', auth='public', methods=['POST'], csrf=False)
+    def find_employee_by_email(self, **kw):
+        """Tìm employee theo work_email, trả về id nếu tồn tại"""
+        # Validate API key
+        is_valid, user = self._validate_api_key()
+        if not is_valid:
+            response = request.make_response(json.dumps(user), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+
+        # Parse input
+        try:
+            data = json.loads(request.httprequest.data.decode('utf-8'))
+        except Exception:
+            data = request.jsonrequest
+        work_email = data.get('work_email')
+        if not work_email:
+            result = {'success': False, 'error': 'Missing work_email in request body'}
+            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+
+        # Tìm employee theo work_email
+        employee = request.env['hr.employee'].sudo().search([('work_email', '=', work_email)], limit=1)
+        if employee:
+            result = {'success': True, 'employee_id': employee.id}
+        else:
+            result = {'success': False, 'error': 'No employee found with this work_email'}
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
