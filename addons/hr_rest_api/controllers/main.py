@@ -195,6 +195,16 @@ class HrRestApiController(http.Controller):
         """Handle OPTIONS request for employees by department endpoint"""
         return self._handle_options_request()
     
+    @http.route(['/api/hr/companies', '/api/hr/companies/<int:company_id>'], type='http', auth='public', methods=['OPTIONS'], csrf=False)
+    def options_companies(self, **kw):
+        """Handle OPTIONS request for companies endpoints"""
+        return self._handle_options_request()
+    
+    @http.route(['/api/hr/companies/<int:company_id>/statistics'], type='http', auth='public', methods=['OPTIONS'], csrf=False)
+    def options_company_statistics(self, **kw):
+        """Handle OPTIONS request for company statistics endpoint"""
+        return self._handle_options_request()
+    
     # Employee endpoints
     @http.route('/api/hr/employees', type='http', auth='public', methods=['GET'], csrf=False)
     def get_employees(self, **kw):
@@ -895,6 +905,85 @@ class HrRestApiController(http.Controller):
             json.dumps(result),
             headers=[('Content-Type', 'application/json')]
         )
+        return self._add_cors_headers(response)
+    
+    # Company endpoints
+    @http.route('/api/hr/companies', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_companies(self, **kw):
+        """Get list of companies with HR-related information"""
+        limit = int(kw.get('limit', 100))
+        offset = int(kw.get('offset', 0))
+        order = kw.get('order', 'id')
+        
+        fields = [
+            'id', 'name', 'partner_id', 'currency_id', 'sequence', 'parent_id',
+            'child_ids', 'hr_presence_control_email_amount', 'hr_presence_control_ip_list',
+            'hr_presence_control_login', 'hr_presence_control_email',
+            'hr_presence_control_ip', 'hr_presence_control_attendance',
+            'country_id', 'email', 'phone', 'website'
+        ]
+        
+        result = self._handle_request(
+            model='res.company',
+            fields=fields,
+            limit=limit,
+            offset=offset,
+            order=order
+        )
+        
+        response = request.make_response(
+            json.dumps(result),
+            headers=[('Content-Type', 'application/json')]
+        )
+        return self._add_cors_headers(response)
+    
+        """Get HR statistics for a specific company"""
+        is_valid, user = self._validate_api_key()
+        if not is_valid:
+            response = request.make_response(json.dumps(user), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+            
+        # Check company exists
+        company = request.env['res.company'].sudo().browse(company_id)
+        if not company.exists():
+            result = {
+                'success': False,
+                'error': f'Company not found with ID {company_id}'
+            }
+            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+            
+        # Get statistics
+        employees = request.env['hr.employee'].sudo().search([('company_id', '=', company_id)])
+        departments = request.env['hr.department'].sudo().search([('company_id', '=', company_id)])
+        jobs = request.env['hr.job'].sudo().search([('company_id', '=', company_id)])
+        
+        # Calculate more statistics
+        active_employees = len([e for e in employees if e.active])
+        inactive_employees = len(employees) - active_employees
+        male_employees = len([e for e in employees if e.gender == 'male'])
+        female_employees = len([e for e in employees if e.gender == 'female'])
+        other_gender_employees = len([e for e in employees if e.gender == 'other'])
+        
+        result = {
+            'success': True,
+            'data': {
+                'company_id': company_id,
+                'company_name': company.name,
+                'total_employees': len(employees),
+                'active_employees': active_employees,
+                'inactive_employees': inactive_employees,
+                'total_departments': len(departments),
+                'total_job_positions': len(jobs),
+                'gender_distribution': {
+                    'male': male_employees,
+                    'female': female_employees,
+                    'other': other_gender_employees
+                }
+            }
+        }
+        
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
         return self._add_cors_headers(response)
     
     
