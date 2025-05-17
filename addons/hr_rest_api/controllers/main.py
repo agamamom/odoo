@@ -1115,6 +1115,7 @@ class HrRestApiController(http.Controller):
         vals = {
             'res_model': 'hr.employee',
             'res_id': employee_id,
+            'res_field': 'image_1920',
             'name': 'image_1920',
             'type': 'binary',
             'mimetype': 'image/png',  # hoặc xác định từ dữ liệu nếu cần
@@ -1164,3 +1165,8 @@ class HrRestApiController(http.Controller):
             result = {'success': False, 'error': 'No employee found with this work_email'}
         response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
         return self._add_cors_headers(response)
+
+    @http.route('/api/hr/employees/find_by_email', type='http', auth='public', methods=['OPTIONS'], csrf=False)
+    def options_find_employee_by_email(self, **kw):
+        """Handle OPTIONS request for find_by_email endpoint"""
+        return self._handle_options_request()
