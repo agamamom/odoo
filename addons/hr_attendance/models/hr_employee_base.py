@@ -1,10 +1,17 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
-from odoo import api, models
+from odoo import api, models, fields
 
 
 class HrEmployeeBase(models.AbstractModel):
     _inherit = "hr.employee.base"
+
+    # Add Vietnamese labor law fields
+    social_insurance_number = fields.Char(string='Mã BHXH', help='Mã số Bảo hiểm Xã hội')
+    health_insurance_number = fields.Char(string='Mã BHYT', help='Mã số Bảo hiểm Y tế')
+    annual_leave_days = fields.Float(string='Ngày nghỉ phép năm', default=12.0, help='Số ngày nghỉ phép năm theo luật Việt Nam')
+    sick_leave_days = fields.Float(string='Ngày nghỉ ốm', default=30.0, help='Số ngày nghỉ ốm theo luật Việt Nam')
+    maternity_leave_days = fields.Float(string='Ngày nghỉ thai sản', default=180.0, help='Số ngày nghỉ thai sản theo luật Việt Nam')
 
     @api.depends("user_id.im_status", "attendance_state")
     def _compute_presence_state(self):

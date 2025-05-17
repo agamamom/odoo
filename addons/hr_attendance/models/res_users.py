@@ -14,6 +14,8 @@ class User(models.Model):
     total_overtime = fields.Float(related='employee_id.total_overtime')
     attendance_manager_id = fields.Many2one(related='employee_id.attendance_manager_id', readonly=False)
     display_extra_hours = fields.Boolean(related='company_id.hr_attendance_display_overtime')
+    social_insurance_number = fields.Char(string='Mã BHXH', related='employee_id.social_insurance_number', help='Mã số Bảo hiểm Xã hội')
+    health_insurance_number = fields.Char(string='Mã BHYT', related='employee_id.health_insurance_number', help='Mã số Bảo hiểm Y tế')
 
     @property
     def SELF_READABLE_FIELDS(self):
@@ -26,6 +28,8 @@ class User(models.Model):
             'total_overtime',
             'attendance_manager_id',
             'display_extra_hours',
+            'social_insurance_number',
+            'health_insurance_number',
         ]
 
     def _clean_attendance_officers(self):

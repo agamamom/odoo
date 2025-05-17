@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <report
+            id="action_report_attendance_pdf"
+            model="hr.attendance.report"
+            string="Attendance Report (PDF)"
+            report_type="qweb-pdf"
+            name="hr_attendance.report_attendance_pdf"
+            file="hr_attendance.report_attendance_pdf"
+        />
+        <template id="report_attendance_pdf">
+            <t t-call="web.html_container">
+                <t t-foreach="docs" t-as="doc">
+                    <t t-call="web.external_layout">
+                        <div class="page">
+                            <h2>Báo Cáo Chấm Công</h2>
+                            <p>Nhân viên: <span t-field="doc.employee_id.name"/></p>
+                            <p>Từ ngày: <span t-field="doc.start_date"/></p>
+                            <p>Đến ngày: <span t-field="doc.end_date"/></p>
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Ngày</th>
+                                        <th>Giờ vào</th>
+                                        <th>Giờ ra</th>
+                                        <th>Giờ làm việc</th>
+                                        <th>Giờ tăng ca</th>
+                                        <th>Loại ca</th>
+                                        <th>Ngày nghỉ phép</th>
+                                        <th>Vắng không lý do</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-set="attendances" t-value="env['hr.attendance'].search([('employee_id', '=', doc.employee_id.id), ('check_in', '&gt;=', doc.start_date), ('check_out', '&lt;=', doc.end_date)])"/>
+                                    <t t-set="leaves" t-value="env['hr.leave'].search([('employee_id', '=', doc.employee_id.id), ('date_from', '&gt;=', doc.start_date), ('date_to', '&lt;=', doc.end_date)])"/>
+                                    <tr t-foreach="attendances" t-as="att">
+                                        <td><span t-field="att.check_in" t-options="{'format': 'dd/MM/yyyy'}"/></td>
+                                        <td><span t-field="att.check_in" t-options="{'format': 'HH:mm:ss'}"/></td>
+                                        <td><span t-field="att.check_out" t-options="{'format': 'HH:mm:ss'}"/></td>
+                                        <td><span t-field="att.worked_hours"/></td>
+                                        <td><span t-field="att.overtime_hours"/></td>
+                                        <td><span t-field="doc.employee_id.shift_type"/></td>
+                                        <td>
+                                            <t t-if="any(leave.date_from.date() &lt;= att.check_in.date() &lt;= leave.date_to.date() for leave in leaves)">
+                                                Có
+                                            </t>
+                                            <t t-else="">
+                                                Không
+                                            </t>
+                                        </td>
+                                        <td>
+                                            <t t-if="not att.check_in and not any(leave.date_from.date() &lt;= att.check_in.date() &lt;= leave.date_to.date() for leave in leaves)">
+                                                Có
+                                            </t>
+                                            <t t-else="">
+                                                Không
+                                            </t>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </t>
+                </t>
+            </t>
+        </template>
+    </data>
+</odoo> 

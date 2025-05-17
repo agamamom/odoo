@@ -17,7 +17,8 @@ actions(Check in/Check out) performed by them.
     'website': 'https://www.odoo.com/app/employees',
     'depends': ['hr', 'barcodes'],
     'data': [
-        'data/hr_attendance_data.xml',
+        'data/hr_attendance_data_fixed.xml',
+        'data/hr_holiday_data.xml',
         'security/hr_attendance_security.xml',
         'security/ir.model.access.csv',
         'views/hr_attendance_view.xml',
@@ -25,7 +26,9 @@ actions(Check in/Check out) performed by them.
         'views/hr_department_view.xml',
         'views/hr_employee_view.xml',
         'views/res_config_settings_views.xml',
-        'views/hr_attendance_kiosk_templates.xml'
+        'views/hr_attendance_kiosk_templates.xml',
+        'report/hr_attendance_report_templates.xml',
+        'report/hr_labor_fluctuation_report.xml',
     ],
     'demo': [
         'data/hr_attendance_demo.xml'

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <report
+            id="action_report_labor_fluctuation"
+            model="hr.attendance.report"
+            string="Báo Cáo Biến Động Lao Động (6 tháng/lần)"
+            report_type="qweb-pdf"
+            name="hr_attendance.report_labor_fluctuation"
+            file="hr_attendance.report_labor_fluctuation"
+        />
+        <template id="report_labor_fluctuation">
+            <t t-call="web.html_container">
+                <t t-foreach="docs" t-as="doc">
+                    <t t-call="web.external_layout">
+                        <div class="page">
+                            <h2>Báo Cáo Biến Động Lao Động</h2>
+                            <p>Đơn vị: <span t-field="doc.employee_id.company_id.name"/></p>
+                            <p>Kỳ báo cáo: Từ <span t-field="doc.start_date"/> đến <span t-field="doc.end_date"/></p>
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>STT</th>
+                                        <th>Mã NV</th>
+                                        <th>Họ tên</th>
+                                        <th>Ngày vào làm</th>
+                                        <th>Ngày nghỉ việc</th>
+                                        <th>Lý do nghỉ</th>
+                                        <th>Số ngày làm việc</th>
+                                        <th>Ghi chú</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-set="employees" t-value="env['hr.employee'].search([('company_id', '=', doc.employee_id.company_id.id)])"/>
+                                    <t t-set="index" t-value="0"/>
+                                    <tr t-foreach="employees" t-as="emp">
+                                        <t t-set="index" t-value="index + 1"/>
+                                        <td><span t-esc="index"/></td>
+                                        <td><span t-field="emp.identification_id"/></td>
+                                        <td><span t-field="emp.name"/></td>
+                                        <td><span t-field="emp.first_contract_date"/></td>
+                                        <td><span t-field="emp.departure_date"/></td>
+                                        <td><span t-field="emp.departure_reason_id.name"/></td>
+                                        <td>
+                                            <t t-set="attendances" t-value="env['hr.attendance'].search_count([('employee_id', '=', emp.id), ('check_in', '&gt;=', doc.start_date), ('check_out', '&lt;=', doc.end_date)])"/>
+                                            <span t-esc="attendances"/>
+                                        </td>
+                                        <td></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </t>
+                </t>
+            </t>
+        </template>
+    </data>
+</odoo> 

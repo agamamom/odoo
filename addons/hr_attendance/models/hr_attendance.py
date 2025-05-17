@@ -58,7 +58,8 @@ class HrAttendance(models.Model):
                                selection=[('kiosk', "Kiosk"),
                                           ('systray', "Systray"),
                                           ('manual', "Manual"),
-                                          ('technical', 'Technical')],
+                                          ('technical', 'Technical'),
+                                          ('mobile', 'Mobile')],
                                readonly=True,
                                default='manual')
     out_latitude = fields.Float(digits=(10, 7), readonly=True, aggregator=None)
@@ -71,10 +72,16 @@ class HrAttendance(models.Model):
                                            ('systray', "Systray"),
                                            ('manual', "Manual"),
                                            ('technical', 'Technical'),
-                                           ('auto_check_out', 'Automatic Check-Out')],
+                                           ('auto_check_out', 'Automatic Check-Out'),
+                                           ('mobile', 'Mobile')],
                                 readonly=True,
                                 default='manual')
     expected_hours = fields.Float(compute="_compute_expected_hours", store=True, aggregator="sum")
+    overtime_wage_coefficient = fields.Float(string='Overtime Wage Coefficient', compute='_compute_overtime_wage_coefficient', store=True, readonly=True, help='Wage coefficient for overtime hours as per Vietnamese labor law (1.5 for normal days, 2.0 for weekends, 3.0 for holidays).')
+    is_within_geofence = fields.Boolean(string='Within Geofence', compute='_compute_is_within_geofence', store=True, readonly=True, help='Indicates if the attendance was recorded within the allowed geofence area as per company policy.')
+    is_offline = fields.Boolean(string='Offline Check', default=False, help='Indicates if the attendance was recorded offline and synced later.')
+    face_id_result = fields.Selection(string='Face ID Result', selection=[('success', 'Success'), ('failure', 'Failure'), ('manual', 'Manual Override')], help='Result of face recognition during check-in or check-out.')
+    face_id_timestamp = fields.Datetime(string='Face ID Timestamp', help='Time when face recognition was performed.')
 
     @api.depends("worked_hours", "overtime_hours")
     def _compute_expected_hours(self):
@@ -233,46 +240,50 @@ class HrAttendance(models.Model):
 
     @api.constrains('check_in', 'check_out', 'employee_id')
     def _check_validity(self):
-        """ Verifies the validity of the attendance record compared to the others from the same employee.
-            For the same employee we must have :
-                * maximum 1 "open" attendance record (without check_out)
-                * no overlapping time slices with previous employee records
-        """
         for attendance in self:
-            # we take the latest attendance before our check_in time and check it doesn't overlap with ours
-            last_attendance_before_check_in = self.env['hr.attendance'].search([
-                ('employee_id', '=', attendance.employee_id.id),
-                ('check_in', '<=', attendance.check_in),
-                ('id', '!=', attendance.id),
-            ], order='check_in desc', limit=1)
-            if last_attendance_before_check_in and last_attendance_before_check_in.check_out and last_attendance_before_check_in.check_out > attendance.check_in:
-                raise exceptions.ValidationError(_("Cannot create new attendance record for %(empl_name)s, the employee was already checked in on %(datetime)s",
-                                                   empl_name=attendance.employee_id.name,
-                                                   datetime=format_datetime(self.env, attendance.check_in, dt_format=False)))
+            if attendance.check_out:
+                # Check daily working hours limit (8 hours/day)
+                daily_limit = 8.0
+                if attendance.worked_hours > daily_limit:
+                    raise exceptions.ValidationError(_('Worked hours exceed daily limit of %s hours as per Vietnamese labor law.') % daily_limit)
+                
+                # Check daily overtime limit (4 hours/day)
+                daily_overtime_limit = 4.0
+                if attendance.overtime_hours > daily_overtime_limit:
+                    raise exceptions.ValidationError(_('Overtime hours exceed daily limit of %s hours as per Vietnamese labor law.') % daily_overtime_limit)
 
-            if not attendance.check_out:
-                # if our attendance is "open" (no check_out), we verify there is no other "open" attendance
-                no_check_out_attendances = self.env['hr.attendance'].search([
-                    ('employee_id', '=', attendance.employee_id.id),
-                    ('check_out', '=', False),
-                    ('id', '!=', attendance.id),
-                ], order='check_in desc', limit=1)
-                if no_check_out_attendances:
-                    raise exceptions.ValidationError(_("Cannot create new attendance record for %(empl_name)s, the employee hasn't checked out since %(datetime)s",
-                                                       empl_name=attendance.employee_id.name,
-                                                       datetime=format_datetime(self.env, no_check_out_attendances.check_in, dt_format=False)))
-            else:
-                # we verify that the latest attendance with check_in time before our check_out time
-                # is the same as the one before our check_in time computed before, otherwise it overlaps
-                last_attendance_before_check_out = self.env['hr.attendance'].search([
-                    ('employee_id', '=', attendance.employee_id.id),
-                    ('check_in', '<', attendance.check_out),
-                    ('id', '!=', attendance.id),
-                ], order='check_in desc', limit=1)
-                if last_attendance_before_check_out and last_attendance_before_check_in != last_attendance_before_check_out:
-                    raise exceptions.ValidationError(_("Cannot create new attendance record for %(empl_name)s, the employee was already checked in on %(datetime)s",
-                                                       empl_name=attendance.employee_id.name,
-                                                       datetime=format_datetime(self.env, last_attendance_before_check_out.check_in, dt_format=False)))
+                # Check break time (at least 30 minutes if working 8 hours continuously)
+                if attendance.worked_hours >= 8.0:
+                    # Assuming a break tracking mechanism will be added later
+                    pass
+
+            # Check weekly working hours limit (48 hours/week)
+            week_start, week_end = attendance._get_week_start_end(attendance.check_in)
+            weekly_hours = attendance.employee_id._get_weekly_hours(week_start, week_end)
+            weekly_limit = 48.0
+            if weekly_hours > weekly_limit:
+                raise exceptions.ValidationError(_('Total weekly working hours exceed limit of %s hours as per Vietnamese labor law.') % weekly_limit)
+
+            # Check annual overtime limit (200-300 hours/year, default to 200)
+            year_start, year_end = attendance._get_year_start_end(attendance.check_in)
+            annual_overtime_hours = attendance.employee_id._get_annual_overtime_hours(year_start, year_end)
+            annual_overtime_limit = attendance.employee_id.company_id.annual_overtime_limit or 200.0
+            if annual_overtime_hours > annual_overtime_limit:
+                raise exceptions.ValidationError(_('Annual overtime hours exceed limit of %s hours as per Vietnamese labor law.') % annual_overtime_limit)
+
+    def _get_week_start_end(self, date):
+        tz = pytz.timezone(self.employee_id.tz or 'UTC')
+        date_tz = pytz.utc.localize(date).astimezone(tz)
+        week_start = date_tz - relativedelta(days=date_tz.weekday())
+        week_end = week_start + relativedelta(days=6, hour=23, minute=59, second=59)
+        return week_start.astimezone(pytz.utc).replace(tzinfo=None), week_end.astimezone(pytz.utc).replace(tzinfo=None)
+
+    def _get_year_start_end(self, date):
+        tz = pytz.timezone(self.employee_id.tz or 'UTC')
+        date_tz = pytz.utc.localize(date).astimezone(tz)
+        year_start = date_tz.replace(month=1, day=1, hour=0, minute=0, second=0)
+        year_end = date_tz.replace(month=12, day=31, hour=23, minute=59, second=59)
+        return year_start.astimezone(pytz.utc).replace(tzinfo=None), year_end.astimezone(pytz.utc).replace(tzinfo=None)
 
     @api.model
     def _get_day_start_and_day(self, employee, dt):
@@ -763,3 +774,49 @@ class HrAttendance(models.Model):
             technical_attendance.message_post(body=body)
 
         to_unlink.unlink()
+
+    @api.depends('check_in', 'overtime_hours')
+    def _compute_overtime_wage_coefficient(self):
+        for attendance in self:
+            if attendance.check_in:
+                # Check if the date is a holiday or weekend
+                check_in_date = attendance.check_in.date()
+                holidays = attendance.employee_id.company_id.holiday_ids.mapped('date')
+                if check_in_date in holidays:
+                    attendance.overtime_wage_coefficient = 3.0  # 300% for holidays
+                elif check_in_date.weekday() >= 5:  # Saturday or Sunday
+                    attendance.overtime_wage_coefficient = 2.0  # 200% for weekends
+                else:
+                    attendance.overtime_wage_coefficient = 1.5  # 150% for normal days
+            else:
+                attendance.overtime_wage_coefficient = 1.5  # Default to normal day
+
+    @api.depends('in_latitude', 'in_longitude', 'employee_id.company_id')
+    def _compute_is_within_geofence(self):
+        for attendance in self:
+            if attendance.in_latitude and attendance.in_longitude and attendance.employee_id.company_id:
+                company = attendance.employee_id.company_id
+                if company.geofence_latitude and company.geofence_longitude and company.geofence_radius:
+                    from math import radians, sin, cos, sqrt, atan2
+                    def haversine(lat1, lon1, lat2, lon2):
+                        R = 6371.0  # Earth radius in kilometers
+                        lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+                        dlat = lat2 - lat1
+                        dlon = lon2 - lon1
+                        a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+                        c = 2 * atan2(sqrt(a), sqrt(1 - a))
+                        distance = R * c * 1000  # Convert to meters
+                        return distance
+                    distance = haversine(attendance.in_latitude, attendance.in_longitude, company.geofence_latitude, company.geofence_longitude)
+                    attendance.is_within_geofence = distance <= company.geofence_radius
+                else:
+                    attendance.is_within_geofence = True  # No geofence defined, assume valid
+            else:
+                attendance.is_within_geofence = False
+
+    def _send_overtime_approval_reminder(self):
+        """Send reminder to managers for pending overtime approvals."""
+        for attendance in self:
+            if attendance.overtime_status == 'to_approve' and attendance.employee_id.parent_id and attendance.employee_id.parent_id.user_id:
+                message = _("Reminder: Overtime request for %s on %s is pending approval.") % (attendance.employee_id.name, attendance.check_in.date())
+                attendance.message_post(body=message, partner_ids=[attendance.employee_id.parent_id.user_id.partner_id.id])

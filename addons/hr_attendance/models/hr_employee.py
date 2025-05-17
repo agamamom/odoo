@@ -49,6 +49,20 @@ class HrEmployee(models.Model):
     total_overtime = fields.Float(
         compute='_compute_total_overtime', compute_sudo=True, groups="hr_attendance.group_hr_attendance_officer,hr.group_hr_user")
 
+    # Add Vietnamese social insurance fields
+    social_insurance_number = fields.Char(string='Mã BHXH', help='Mã số Bảo hiểm Xã hội')
+    health_insurance_number = fields.Char(string='Mã BHYT', help='Mã số Bảo hiểm Y tế')
+
+    # Add leave types according to Vietnamese law
+    annual_leave_days = fields.Float(string='Ngày nghỉ phép năm', default=12.0)
+    sick_leave_days = fields.Float(string='Ngày nghỉ ốm', default=30.0)
+    maternity_leave_days = fields.Float(string='Ngày nghỉ thai sản', default=180.0)
+
+    # Add shift configuration for Vietnamese working schedules
+    shift_type = fields.Selection(string='Loại ca', selection=[('day', 'Ca ngày'), ('night', 'Ca đêm'), ('rotating', 'Ca xoay vòng')], default='day', help='Loại ca làm việc của nhân viên.')
+    shift_start_time = fields.Float(string='Giờ bắt đầu ca', default=8.0, help='Giờ bắt đầu ca làm việc (theo định dạng 24h).')
+    shift_end_time = fields.Float(string='Giờ kết thúc ca', default=17.0, help='Giờ kết thúc ca làm việc (theo định dạng 24h).')
+
     @api.model_create_multi
     def create(self, vals_list):
         officer_group = self.env.ref('hr_attendance.group_hr_attendance_officer', raise_if_not_found=False)
@@ -223,3 +237,41 @@ class HrEmployee(models.Model):
             },
             "domain": [('employee_id', '=', self.id), ('overtime_status', '=', 'approved')]
         }
+
+    def _get_weekly_hours(self, start_date, end_date):
+        """Calculate total working hours for the employee within a week."""
+        attendances = self.env['hr.attendance'].search([
+            ('employee_id', '=', self.id),
+            ('check_in', '>=', start_date),
+            ('check_out', '<=', end_date),
+            ('check_out', '!=', False)
+        ])
+        return sum(attendance.worked_hours for attendance in attendances)
+
+    def _get_annual_overtime_hours(self, start_date, end_date):
+        """Calculate total overtime hours for the employee within a year."""
+        attendances = self.env['hr.attendance'].search([
+            ('employee_id', '=', self.id),
+            ('check_in', '>=', start_date),
+            ('check_out', '<=', end_date),
+            ('check_out', '!=', False)
+        ])
+        return sum(attendance.overtime_hours for attendance in attendances)
+
+    def _check_missed_attendance(self):
+        """Check if the employee missed check-in or check-out for the day and send notification."""
+        from datetime import datetime, date
+        today = date.today()
+        for employee in self:
+            # Check if employee has an attendance record for today
+            attendance = self.env['hr.attendance'].search([
+                ('employee_id', '=', employee.id),
+                ('check_in', '>=', today),
+                ('check_in', '<', today + relativedelta(days=1))
+            ], limit=1)
+            if not attendance and employee.resource_calendar_id:
+                # Send notification to employee and manager
+                message = _("Reminder: You have not checked in today. Please remember to record your attendance.")
+                employee.message_post(body=message, partner_ids=[employee.user_id.partner_id.id])
+                if employee.parent_id and employee.parent_id.user_id:
+                    employee.message_post(body=message, partner_ids=[employee.parent_id.user_id.partner_id.id])

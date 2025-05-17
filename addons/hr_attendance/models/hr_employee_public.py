@@ -21,3 +21,7 @@ class HrEmployeePublic(models.Model):
         groups="hr_attendance.group_hr_attendance_officer")
     last_check_out = fields.Datetime(related='employee_id.last_check_out',
         groups="hr_attendance.group_hr_attendance_officer")
+
+    # Add Vietnamese labor law public fields
+    social_insurance_number = fields.Char(string='Mã BHXH', help='Mã số Bảo hiểm Xã hội', readonly=True)
+    health_insurance_number = fields.Char(string='Mã BHYT', help='Mã số Bảo hiểm Y tế', readonly=True)

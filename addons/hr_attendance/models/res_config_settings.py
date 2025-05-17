@@ -22,6 +22,13 @@ class ResConfigSettings(models.TransientModel):
     auto_check_out = fields.Boolean(related="company_id.auto_check_out", readonly=False)
     auto_check_out_tolerance = fields.Float(related="company_id.auto_check_out_tolerance", readonly=False)
     absence_management = fields.Boolean(related="company_id.absence_management", readonly=False)
+    # Add Vietnamese labor law configurations
+    max_daily_hours = fields.Float(string='Giới hạn giờ làm hàng ngày', default=8.0, help='Giới hạn giờ làm việc tối đa mỗi ngày theo luật Việt Nam')
+    max_weekly_hours = fields.Float(string='Giới hạn giờ làm hàng tuần', default=48.0, help='Giới hạn giờ làm việc tối đa mỗi tuần theo luật Việt Nam')
+    max_overtime_daily = fields.Float(string='Giới hạn tăng ca hàng ngày', default=4.0, help='Giới hạn giờ tăng ca tối đa mỗi ngày theo luật Việt Nam')
+    max_overtime_annual = fields.Float(string='Giới hạn tăng ca hàng năm', default=200.0, help='Giới hạn giờ tăng ca tối đa mỗi năm theo luật Việt Nam')
+    break_time_required = fields.Boolean(string='Yêu cầu nghỉ giữa ca', default=True, help='Bắt buộc nghỉ giữa ca theo luật Việt Nam')
+    break_duration = fields.Float(string='Thời gian nghỉ giữa ca (giờ)', default=0.5, help='Thời gian nghỉ giữa ca tối thiểu theo luật Việt Nam')
 
     @api.model
     def get_values(self):

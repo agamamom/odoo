@@ -2,6 +2,7 @@ from odoo import http
 from odoo.http import request, Response
 import json
 from werkzeug.exceptions import BadRequest
+import datetime
 
 
 class HrRestApiController(http.Controller):
@@ -148,6 +149,15 @@ class HrRestApiController(http.Controller):
                 'success': False,
                 'error': str(e)
             }
+    
+    def _json_serializable(self, obj):
+        if isinstance(obj, (datetime.datetime, datetime.date)):
+            return obj.isoformat()
+        if isinstance(obj, dict):
+            return {k: self._json_serializable(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [self._json_serializable(v) for v in obj]
+        return obj
     
     # CORS preflight OPTIONS handling for each route pattern
     @http.route(['/api/hr/employees', '/api/hr/employees/<int:employee_id>'], type='http', auth='public', methods=['OPTIONS'], csrf=False)
@@ -937,6 +947,8 @@ class HrRestApiController(http.Controller):
         )
         return self._add_cors_headers(response)
     
+    @http.route('/api/hr/companies/<int:company_id>/statistics', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_company_statistics(self, company_id, **kw):
         """Get HR statistics for a specific company"""
         is_valid, user = self._validate_api_key()
         if not is_valid:
@@ -985,5 +997,143 @@ class HrRestApiController(http.Controller):
         
         response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
         return self._add_cors_headers(response)
+
+    # Attendance endpoints
+    @http.route('/api/hr/attendances', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_attendances(self, **kw):
+        """Get list of attendance records"""
+        limit = int(kw.get('limit', 100))
+        offset = int(kw.get('offset', 0))
+        order = kw.get('order', 'check_in desc')
+        fields = [
+            'id', 'employee_id', 'department_id', 'manager_id', 'check_in', 'check_out',
+            'worked_hours', 'color', 'overtime_hours', 'overtime_status', 'validated_overtime_hours',
+            'no_validated_overtime_hours', 'in_latitude', 'in_longitude', 'in_country_name', 'in_city',
+            'in_ip_address', 'in_browser', 'in_mode', 'out_latitude', 'out_longitude', 'out_country_name',
+            'out_city', 'out_ip_address', 'out_browser', 'out_mode', 'expected_hours',
+            'overtime_wage_coefficient', 'is_within_geofence', 'is_offline', 'face_id_result', 'face_id_timestamp',
+            'create_uid', 'create_date', 'write_uid', 'write_date'
+        ]
+        result = self._handle_request(
+            model='hr.attendance',
+            fields=fields,
+            limit=limit,
+            offset=offset,
+            order=order
+        )
+        result = self._json_serializable(result)
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    @http.route('/api/hr/attendances/<int:attendance_id>', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_attendance(self, attendance_id, **kw):
+        """Get a specific attendance record by ID"""
+        fields = [
+            'id', 'employee_id', 'department_id', 'manager_id', 'check_in', 'check_out',
+            'worked_hours', 'color', 'overtime_hours', 'overtime_status', 'validated_overtime_hours',
+            'no_validated_overtime_hours', 'in_latitude', 'in_longitude', 'in_country_name', 'in_city',
+            'in_ip_address', 'in_browser', 'in_mode', 'out_latitude', 'out_longitude', 'out_country_name',
+            'out_city', 'out_ip_address', 'out_browser', 'out_mode', 'expected_hours',
+            'overtime_wage_coefficient', 'is_within_geofence', 'is_offline', 'face_id_result', 'face_id_timestamp',
+            'create_uid', 'create_date', 'write_uid', 'write_date'
+        ]
+        result = self._handle_request(
+            model='hr.attendance',
+            fields=fields,
+            domain=[('id', '=', attendance_id)]
+        )
+        if result.get('success') and result.get('count') > 0:
+            result['data'] = result['data'][0]
+        result = self._json_serializable(result)
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    @http.route('/api/hr/attendances/kiosk_url', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_attendance_kiosk_url(self, **kw):
+        """Get the kiosk URL for the current user"""
+        is_valid, user = self._validate_api_key()
+        if not is_valid:
+            response = request.make_response(json.dumps(user), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+        employee = request.env.user.employee_id
+        if not employee:
+            result = {'success': False, 'error': 'No employee linked to current user'}
+            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+        kiosk_url = request.env['hr.attendance'].get_kiosk_url()
+        result = {'success': True, 'kiosk_url': kiosk_url}
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    @http.route('/api/hr/attendances/has_demo_data', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_attendance_has_demo_data(self, **kw):
+        """Check if demo data exists for hr.attendance"""
+        is_valid, user = self._validate_api_key()
+        if not is_valid:
+            response = request.make_response(json.dumps(user), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+        has_demo = request.env['hr.attendance'].has_demo_data()
+        result = {'success': True, 'has_demo_data': has_demo}
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+    
+    @http.route('/api/hr/employees/<int:employee_id>/avatar', type='json', auth='public', methods=['PUT'], csrf=False)
+    def update_employee_avatar(self, employee_id, **kw):
+        """Upload avatar image for an employee, store as ir_attachment (base64 in 'image_base64')"""
+        # Validate API key
+        is_valid, user = self._validate_api_key()
+        if not is_valid:
+            response = request.make_response(json.dumps(user), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+
+        # Parse input
+        try:
+            data = json.loads(request.httprequest.data.decode('utf-8'))
+        except Exception:
+            data = request.jsonrequest
+        image_base64 = data.get('image_base64')
+        if not image_base64:
+            result = {'success': False, 'error': 'Missing image_base64 in request body'}
+            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+
+        # Check employee exists
+        employee = request.env['hr.employee'].sudo().browse(employee_id)
+        if not employee.exists():
+            result = {'success': False, 'error': f'Employee not found with ID {employee_id}'}
+            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+
+        # Save image as ir_attachment
+        IrAttachment = request.env['ir.attachment'].sudo()
+        domain = [
+            ('res_model', '=', 'hr.employee'),
+            ('res_id', '=', employee_id),
+            ('name', '=', 'image_1920')
+        ]
+        attachment = IrAttachment.search(domain, limit=1)
+        vals = {
+            'res_model': 'hr.employee',
+            'res_id': employee_id,
+            'name': 'image_1920',
+            'type': 'binary',
+            'mimetype': 'image/png',  # hoặc xác định từ dữ liệu nếu cần
+            'datas': image_base64,
+        }
+        try:
+            if attachment:
+                attachment.write(vals)
+            else:
+                IrAttachment.create(vals)
+            result = {'success': True, 'message': 'Avatar image uploaded and saved to ir_attachment successfully'}
+        except Exception as e:
+            result = {'success': False, 'error': str(e)}
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    @http.route('/api/hr/employees/<int:employee_id>/avatar', type='http', auth='public', methods=['OPTIONS'], csrf=False)
+    def options_employee_avatar(self, employee_id, **kw):
+        """Handle OPTIONS request for employee avatar endpoint"""
+        return self._handle_options_request()
     
     

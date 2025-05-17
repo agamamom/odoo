@@ -10,6 +10,14 @@ class HrAttendanceOvertime(models.Model):
     _rec_name = 'employee_id'
     _order = 'date desc'
 
+    # Add Vietnamese overtime constraints
+    MAX_DAILY_OVERTIME_HOURS = 4
+    MAX_ANNUAL_OVERTIME_HOURS = 200
+
+    # Add overtime wage coefficient
+    OVERTIME_COEFFICIENT_NORMAL = 1.5
+    OVERTIME_COEFFICIENT_HOLIDAY = 2.0
+
     def _default_employee(self):
         return self.env.user.employee_id
 

@@ -39,6 +39,20 @@ class ResCompany(models.Model):
     auto_check_out_tolerance = fields.Float(default=2, export_string_translation=False)
     absence_management = fields.Boolean(string="Absence Management", default=False)
 
+    # Add Vietnamese public holidays
+    vietnamese_holidays = fields.One2many('hr.holiday', 'company_id', string='Ngày nghỉ lễ Việt Nam')
+
+    # Add holiday wage coefficient
+    HOLIDAY_WAGE_COEFFICIENT = 3.0  # 300% for working on holidays
+
+    annual_overtime_limit = fields.Float(string='Annual Overtime Limit (Hours)', default=200.0, help='Maximum overtime hours allowed per year as per Vietnamese labor law (200-300 hours depending on industry).')
+
+    holiday_ids = fields.One2many('hr.holiday', 'company_id', string='Holidays', help='List of holidays applicable for this company as per Vietnamese calendar (e.g., Tet Nguyen Dan, 30/4, 1/5, 2/9).')
+
+    geofence_latitude = fields.Float(string='Geofence Latitude', digits=(10, 7), help='Latitude of the company geofence center for attendance validation.')
+    geofence_longitude = fields.Float(string='Geofence Longitude', digits=(10, 7), help='Longitude of the company geofence center for attendance validation.')
+    geofence_radius = fields.Float(string='Geofence Radius (meters)', default=100.0, help='Radius in meters of the geofence area for valid attendance check-in.')
+
     @api.depends("attendance_kiosk_key")
     def _compute_attendance_kiosk_url(self):
         for company in self:
