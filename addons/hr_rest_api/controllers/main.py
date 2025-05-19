@@ -1,11 +1,12 @@
 from odoo import http
 from odoo.http import request, Response
 import json
-from werkzeug.exceptions import BadRequest
+from werkzeug.exceptions import BadRequest, NotFound
 from odoo import fields
 import datetime
 import io
 from PIL import Image
+import base64
 
 
 class HrRestApiController(http.Controller):
@@ -216,6 +217,11 @@ class HrRestApiController(http.Controller):
     @http.route(['/api/hr/companies/<int:company_id>/statistics'], type='http', auth='public', methods=['OPTIONS'], csrf=False)
     def options_company_statistics(self, **kw):
         """Handle OPTIONS request for company statistics endpoint"""
+        return self._handle_options_request()
+    
+    @http.route(['/api/hr/attendances', '/api/hr/attendances/<int:attendance_id>', '/api/hr/attendances/kiosk_url', '/api/hr/attendances/has_demo_data'], type='http', auth='public', methods=['OPTIONS'], csrf=False)
+    def options_attendances(self, **kw):
+        """Handle OPTIONS request for attendances endpoints"""
         return self._handle_options_request()
     
     # Employee endpoints
@@ -1347,3 +1353,26 @@ class HrRestApiController(http.Controller):
     def options_attendance_confirm(self, **kw):
         """Handle OPTIONS request for attendance confirm endpoint"""
         return self._handle_options_request()
+
+    @http.route('/api/hr/employees/<int:employee_id>/image/<string:field_name>', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_employee_image(self, employee_id, field_name, **kw):
+        """Get employee image by ID and field name"""
+        # You might want to add API key validation here if needed,
+        # depending on whether employee images should be public or not.
+        # is_valid, user = self._validate_api_key()
+        # if not is_valid:
+        #     response = request.make_response(json.dumps(user), headers=[('Content-Type', 'application/json')])
+        #     return self._add_cors_headers(response)
+
+        employee = request.env['hr.employee'].sudo().browse(employee_id)
+
+        if not employee.exists():
+            raise NotFound("Employee not found")
+
+        try:
+            # Use the standard web/image route internally to serve the image
+            # This handles image resizing and other optimizations
+            image_url = f'/web/image/hr.employee/{employee_id}/{field_name}'
+            return request.redirect(image_url)
+        except Exception as e:
+            return request.make_response(json.dumps({'success': False, 'error': str(e)}), headers=[('Content-Type', 'application/json')])
