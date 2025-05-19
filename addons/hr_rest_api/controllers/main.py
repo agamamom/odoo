@@ -7,6 +7,8 @@ import datetime
 import io
 from PIL import Image
 import base64
+import numpy as np
+import face_recognition
 
 
 class HrRestApiController(http.Controller):
@@ -1367,14 +1369,101 @@ class HrRestApiController(http.Controller):
             return request.not_found()
 
         try:
-            image_data = employee[field_name]
+            # Tìm attachment mới nhất dựa vào create_date
+            domain = [
+                ('res_model', '=', 'hr.employee'),
+                ('res_id', '=', employee_id),
+                ('res_field', '=', field_name)
+            ]
+            latest_attachment = request.env['ir.attachment'].sudo().search(
+                domain, order='create_date desc', limit=1
+            )
+            
+            if latest_attachment and latest_attachment.datas:
+                # Nếu tìm thấy attachment, trả về dữ liệu từ attachment
+                image_data = latest_attachment.datas
+                content_type = latest_attachment.mimetype or 'image/png'
+            else:
+                # Nếu không tìm được attachment, thử lấy từ field của employee
+                image_data = employee[field_name]
+                content_type = 'image/png'
+                
             if not image_data:
                 return request.not_found()
             
             # Trả về binary image trực tiếp
-            response = request.make_response(base64.b64decode(image_data), 
-                                            headers=[('Content-Type', 'image/png')])
+            response = request.make_response(
+                base64.b64decode(image_data), 
+                headers=[('Content-Type', content_type)]
+            )
             return self._add_cors_headers(response)
         except Exception as e:
-            return request.make_response(json.dumps({'success': False, 'error': str(e)}), 
-                                          headers=[('Content-Type', 'application/json')])
+            return request.make_response(
+                json.dumps({'success': False, 'error': str(e)}), 
+                headers=[('Content-Type', 'application/json')]
+            )
+
+    @http.route('/api/hr/auth/session', type='http', auth='none', methods=['POST'], csrf=False)
+    def get_session_id(self, **kw):
+        """
+        Authenticate user and return a valid session_id that can be used to access protected resources like images.
+        
+        Expected JSON body:
+        {
+            "db": "database_name",
+            "login": "user_email",
+            "password": "user_password"
+        }
+        
+        Returns session_id that can be used in Cookie header for subsequent requests to /web/image/...
+        """
+        try:
+            # Parse input
+            try:
+                data = json.loads(request.httprequest.data.decode('utf-8'))
+            except Exception:
+                data = request.jsonrequest
+                
+            # Validate required fields
+            if not all(key in data for key in ['db', 'login', 'password']):
+                result = {'success': False, 'error': 'Missing required fields: db, login, or password'}
+                response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+                return self._add_cors_headers(response)
+                
+            db = data.get('db')
+            login = data.get('login')
+            password = data.get('password')
+            
+            # Use Odoo's built-in authentication
+            uid = request.session.authenticate(db, login, password)
+            
+            if not uid:
+                result = {'success': False, 'error': 'Authentication failed. Invalid credentials.'}
+                response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+                return self._add_cors_headers(response)
+                
+            # Get current session ID
+            session_id = request.session.sid
+            
+            result = {
+                'success': True,
+                'uid': uid,
+                'session_id': session_id,
+                'usage': {
+                    'description': 'Use this session_id in Cookie header for requests to protected resources',
+                    'example': f'Cookie: session_id={session_id}'
+                }
+            }
+            
+            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+            
+        except Exception as e:
+            result = {'success': False, 'error': str(e)}
+            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+            
+    @http.route('/api/hr/auth/session', type='http', auth='none', methods=['OPTIONS'], csrf=False)
+    def options_session_auth(self, **kw):
+        """Handle OPTIONS request for session authentication endpoint"""
+        return self._handle_options_request()
