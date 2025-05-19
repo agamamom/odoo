@@ -7,8 +7,6 @@ import datetime
 import io
 from PIL import Image
 import base64
-import numpy as np
-import face_recognition
 
 
 class HrRestApiController(http.Controller):
@@ -1088,24 +1086,23 @@ class HrRestApiController(http.Controller):
         response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
         return self._add_cors_headers(response)
     
-    @http.route('/api/hr/employees/<int:employee_id>/avatar', type='json', auth='public', methods=['PUT'], csrf=False)
-    def update_employee_avatar(self, employee_id, **kw):
-        """Upload avatar image for an employee, store as ir_attachment (base64 in 'image_base64')"""
+    @http.route('/api/hr/employees/<int:employee_id>/avatar/multi', type='http', auth='public', methods=['POST'], csrf=False)
+    def update_employee_avatar_all_sizes(self, employee_id, **kw):
+        """
+        Update employee avatar for all standard image sizes and store each in ir_attachment
+        
+        POST with form-data:
+        - image: The image file to upload
+        
+        OR with JSON:
+        - image_base64: Base64 encoded image data (can include data:image/png;base64, prefix)
+        
+        Returns success status and IDs of created attachments
+        """
         # Validate API key
         is_valid, user = self._validate_api_key()
         if not is_valid:
             response = request.make_response(json.dumps(user), headers=[('Content-Type', 'application/json')])
-            return self._add_cors_headers(response)
-
-        # Parse input
-        try:
-            data = json.loads(request.httprequest.data.decode('utf-8'))
-        except Exception:
-            data = request.jsonrequest
-        image_base64 = data.get('image_base64')
-        if not image_base64:
-            result = {'success': False, 'error': 'Missing image_base64 in request body'}
-            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
             return self._add_cors_headers(response)
 
         # Check employee exists
@@ -1114,40 +1111,124 @@ class HrRestApiController(http.Controller):
             result = {'success': False, 'error': f'Employee not found with ID {employee_id}'}
             response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
             return self._add_cors_headers(response)
-
-        # Save image as ir_attachment
-        IrAttachment = request.env['ir.attachment'].sudo()
-        domain = [
-            ('res_model', '=', 'hr.employee'),
-            ('res_id', '=', employee_id),
-            ('name', '=', 'image_1920')
-        ]
-        attachment = IrAttachment.search(domain, limit=1)
-        vals = {
-            'res_model': 'hr.employee',
-            'res_id': employee_id,
-            'res_field': 'image_1920',
-            'name': 'image_1920',
-            'type': 'binary',
-            'mimetype': 'image/png',  # hoặc xác định từ dữ liệu nếu cần
-            'datas': image_base64,
-        }
+            
+        # Get image data from request
+        image_data = None
+        mimetype = 'image/png'  # Default mimetype
+        
+        # Check if request has files (multipart/form-data)
+        if request.httprequest.files and 'image' in request.httprequest.files:
+            file = request.httprequest.files['image']
+            image_data = file.read()
+            mimetype = file.content_type
+            # Convert to base64
+            image_base64 = base64.b64encode(image_data).decode('utf-8')
+        else:
+            # Try to get base64 encoded image from JSON body
+            try:
+                data = json.loads(request.httprequest.data.decode('utf-8'))
+            except Exception:
+                data = request.jsonrequest or {}
+                
+            image_base64 = data.get('image_base64', '')
+            
+            # Remove data URI prefix if present
+            if image_base64.startswith('data:'):
+                # Extract mimetype from data URI if available
+                mime_match = image_base64.split(';')[0]
+                if mime_match.startswith('data:'):
+                    mimetype = mime_match[5:]  # Remove 'data:' prefix
+                
+                # Remove prefix part before the base64 data
+                image_base64 = image_base64.split('base64,')[1]
+                
+        if not image_base64:
+            result = {'success': False, 'error': 'No image data provided'}
+            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+            
         try:
-            if attachment:
-                attachment.write(vals)
-            else:
-                IrAttachment.create(vals)
-            result = {'success': True, 'message': 'Avatar image uploaded and saved to ir_attachment successfully'}
+            # Process and resize image
+            image_sizes = {
+                'image_1920': (1920, 1920),
+                'image_1024': (1024, 1024),
+                'image_512': (512, 512),
+                'image_256': (256, 256),
+                'image_128': (128, 128)
+            }
+            
+            # Decode base64 image
+            original_image_data = base64.b64decode(image_base64)
+            
+            # Create PIL Image object
+            img = Image.open(io.BytesIO(original_image_data))
+            
+            # Process each image size
+            IrAttachment = request.env['ir.attachment'].sudo()
+            attachment_ids = {}
+            
+            for field_name, size in image_sizes.items():
+                # Resize image maintaining aspect ratio
+                img_copy = img.copy()
+                img_copy.thumbnail(size, Image.LANCZOS)
+                
+                # Convert to binary and base64
+                buffer = io.BytesIO()
+                img_format = img.format or 'PNG'
+                img_copy.save(buffer, format=img_format)
+                img_binary = buffer.getvalue()
+                img_base64 = base64.b64encode(img_binary).decode('utf-8')
+                
+                # Check if attachment already exists
+                domain = [
+                    ('res_model', '=', 'hr.employee'),
+                    ('res_id', '=', employee_id),
+                    ('res_field', '=', field_name)
+                ]
+                existing_attachment = IrAttachment.search(domain, limit=1)
+                
+                # Prepare attachment values
+                attachment_vals = {
+                    'name': f"{field_name}_{employee.name}",
+                    'datas': img_base64,
+                    'res_model': 'hr.employee',
+                    'res_id': employee_id,
+                    'res_field': field_name,
+                    'type': 'binary',
+                    'mimetype': mimetype
+                }
+                
+                # Update or create attachment
+                if existing_attachment:
+                    existing_attachment.write(attachment_vals)
+                    attachment_ids[field_name] = existing_attachment.id
+                else:
+                    new_attachment = IrAttachment.create(attachment_vals)
+                    attachment_ids[field_name] = new_attachment.id
+                    
+                # Update employee record with the image
+                if field_name == 'image_1920':
+                    employee.write({field_name: img_base64})
+                
+            result = {
+                'success': True,
+                'message': 'Avatar images updated successfully for all sizes',
+                'attachment_ids': attachment_ids
+            }
+            
+            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+            
         except Exception as e:
             result = {'success': False, 'error': str(e)}
-        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
-        return self._add_cors_headers(response)
-
-    @http.route('/api/hr/employees/<int:employee_id>/avatar', type='json', auth='public', methods=['OPTIONS'], csrf=False)
-    def options_employee_avatar(self, employee_id, **kw):
-        """Handle OPTIONS request for employee avatar endpoint"""
-        return self._handle_options_request()
+            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
     
+    @http.route('/api/hr/employees/<int:employee_id>/avatar/multi', type='http', auth='public', methods=['OPTIONS'], csrf=False)
+    def options_employee_avatar_all_sizes(self, employee_id, **kw):
+        """Handle OPTIONS request for update employee avatar all sizes endpoint"""
+        return self._handle_options_request()
+
     @http.route('/api/hr/employees/find_by_email', type='http', auth='public', methods=['POST'], csrf=False)
     def find_employee_by_email(self, **kw):
         """Tìm employee theo work_email, trả về id nếu tồn tại"""
