@@ -2,7 +2,10 @@ from odoo import http
 from odoo.http import request, Response
 import json
 from werkzeug.exceptions import BadRequest
+from odoo import fields
 import datetime
+import io
+from PIL import Image
 
 
 class HrRestApiController(http.Controller):
@@ -1169,4 +1172,178 @@ class HrRestApiController(http.Controller):
     @http.route('/api/hr/employees/find_by_email', type='http', auth='public', methods=['OPTIONS'], csrf=False)
     def options_find_employee_by_email(self, **kw):
         """Handle OPTIONS request for find_by_email endpoint"""
+        return self._handle_options_request()
+    
+
+    #API ROUTE cho phần nhận diện khuôn mặt để chấm công
+    @http.route('/api/hr/attendances/face_checkin', type='json', auth='public', methods=['POST'], csrf=False)
+    def face_checkin(self, **kw):
+        """
+        Check-in/out bằng khuôn mặt.
+        Body: {
+            "image_base64": "data:image/png;base64,..."
+        }
+        """
+        # Validate API key
+        is_valid, user = self._validate_api_key()
+        if not is_valid:
+            response = request.make_response(json.dumps(user), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+
+        try:
+            data = json.loads(request.httprequest.data.decode('utf-8'))
+        except Exception:
+            data = request.jsonrequest
+
+        image_base64 = data.get('image_base64')
+        if not image_base64:
+            result = {'success': False, 'error': 'Missing image_base64 in request body'}
+            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+
+        # Giải mã ảnh gửi lên
+        if image_base64.startswith('data:image'):
+            image_base64 = image_base64.split('base64,')[1]
+        try:
+            upload_image = base64.b64decode(image_base64)
+        except Exception as e:
+            result = {'success': False, 'error': f'Invalid base64 image: {str(e)}'}
+            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+
+        # Lấy tất cả nhân viên có ảnh khuôn mặt
+        employees = request.env['hr.employee'].sudo().search([('image_1920', '!=', False)])
+        matched_employee = None
+
+        def get_face_encoding(image_bytes):
+            # Đọc ảnh từ bytes, chuyển sang numpy array
+            img = np.array(Image.open(io.BytesIO(image_bytes)))
+            encodings = face_recognition.face_encodings(img)
+            if encodings:
+                return encodings[0]
+            return None
+
+        upload_encoding = get_face_encoding(upload_image)
+        if upload_encoding is None:
+            result = {'success': False, 'error': 'No face found in uploaded image'}
+            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+
+        for employee in employees:
+            try:
+                face_image = base64.b64decode(employee.image_1920)
+                employee_encoding = get_face_encoding(face_image)
+                if employee_encoding is not None:
+                    # So sánh khuôn mặt (distance < 0.6 là trùng)
+                    matches = face_recognition.compare_faces([employee_encoding], upload_encoding, tolerance=0.6)
+                    if matches[0]:
+                        matched_employee = employee
+                        break
+            except Exception as e:
+                continue
+
+        if not matched_employee:
+            result = {'success': False, 'error': 'Face not recognized'}
+            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+
+        # Tạo bản ghi chấm công (check-in hoặc check-out)
+        attendance = request.env['hr.attendance'].sudo().create({
+            'employee_id': matched_employee.id,
+            'check_in': fields.Datetime.now(),
+            # hoặc 'check_out': fields.Datetime.now() nếu là check-out
+        })
+
+        result = {'success': True, 'attendance_id': attendance.id, 'employee_id': matched_employee.id}
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    @http.route('/api/hr/attendances/face_checkin', type='http', auth='public', methods=['OPTIONS'], csrf=False)
+    def options_face_checkin(self, **kw):
+        """Handle OPTIONS request for face_checkin endpoint"""
+        return self._handle_options_request()
+
+    @http.route('/api/hr/attendances/confirm', type='json', auth='public', methods=['POST'], csrf=False)
+    def confirm_attendance(self, **kw):
+        """
+        Xác nhận đã nhận diện khuôn mặt thành công từ client.
+        Body: {
+            "employee_id": 123,
+            "action": "check_in",  // hoặc "check_out"
+            // Các trường bổ sung (tùy chọn):
+            // "in_latitude", "in_longitude", "in_country_name", "in_city", "in_ip_address", "in_browser", ...
+            // "out_latitude", "out_longitude", ...
+            // "face_id_result", "is_within_geofence", "is_offline", "company_id", ...
+        }
+        """
+        # Validate API key
+        is_valid, user = self._validate_api_key()
+        if not is_valid:
+            response = request.make_response(json.dumps(user), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+
+        try:
+            data = json.loads(request.httprequest.data.decode('utf-8'))
+        except Exception:
+            data = request.jsonrequest
+
+        employee_id = data.get('employee_id')
+        action = data.get('action', 'check_in')
+        if not employee_id:
+            result = {'success': False, 'error': 'Missing employee_id'}
+            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+
+        # Lấy thông tin bổ sung từ request hoặc client gửi lên
+        ip_address = data.get('in_ip_address') or request.httprequest.remote_addr
+        browser = data.get('in_browser') or request.httprequest.user_agent.string if hasattr(request.httprequest, 'user_agent') else None
+        latitude = data.get('in_latitude')
+        longitude = data.get('in_longitude')
+        country_name = data.get('in_country_name')
+        city = data.get('in_city')
+        face_id_result = data.get('face_id_result', 'success')
+        is_within_geofence = data.get('is_within_geofence')
+        is_offline = data.get('is_offline')
+        company_id = data.get('company_id')
+        face_id_timestamp = fields.Datetime.now()
+
+        vals = {
+            'employee_id': employee_id,
+            'face_id_result': face_id_result,
+            'face_id_timestamp': face_id_timestamp,
+            'in_ip_address': ip_address,
+            'in_browser': browser,
+            'in_latitude': latitude,
+            'in_longitude': longitude,
+            'in_country_name': country_name,
+            'in_city': city,
+            'is_within_geofence': is_within_geofence,
+            'is_offline': is_offline,
+            'company_id': company_id,
+        }
+        if action == 'check_in':
+            vals['check_in'] = fields.Datetime.now()
+            # Nếu có thông tin out_* thì cũng lưu
+            for k in ['out_latitude', 'out_longitude', 'out_country_name', 'out_city', 'out_ip_address', 'out_browser', 'out_mode']:
+                if data.get(k):
+                    vals[k] = data.get(k)
+        elif action == 'check_out':
+            vals['check_out'] = fields.Datetime.now()
+            # Nếu có thông tin out_* thì cũng lưu
+            for k in ['out_latitude', 'out_longitude', 'out_country_name', 'out_city', 'out_ip_address', 'out_browser', 'out_mode']:
+                if data.get(k):
+                    vals[k] = data.get(k)
+        else:
+            result = {'success': False, 'error': 'Invalid action'}
+            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+
+        attendance = request.env['hr.attendance'].sudo().create(vals)
+        result = {'success': True, 'attendance_id': attendance.id}
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    @http.route('/api/hr/attendances/confirm', type='http', auth='public', methods=['OPTIONS'], csrf=False)
+    def options_attendance_confirm(self, **kw):
+        """Handle OPTIONS request for attendance confirm endpoint"""
         return self._handle_options_request()
