@@ -1356,23 +1356,25 @@ class HrRestApiController(http.Controller):
 
     @http.route('/api/hr/employees/<int:employee_id>/image/<string:field_name>', type='http', auth='public', methods=['GET'], csrf=False)
     def get_employee_image(self, employee_id, field_name, **kw):
-        """Get employee image by ID and field name"""
-        # You might want to add API key validation here if needed,
-        # depending on whether employee images should be public or not.
-        # is_valid, user = self._validate_api_key()
-        # if not is_valid:
-        #     response = request.make_response(json.dumps(user), headers=[('Content-Type', 'application/json')])
-        #     return self._add_cors_headers(response)
+        """Get employee image by ID and field name directly as binary"""
+        is_valid, user = self._validate_api_key()
+        if not is_valid:
+            response = request.make_response(json.dumps(user), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
 
         employee = request.env['hr.employee'].sudo().browse(employee_id)
-
         if not employee.exists():
-            raise NotFound("Employee not found")
+            return request.not_found()
 
         try:
-            # Use the standard web/image route internally to serve the image
-            # This handles image resizing and other optimizations
-            image_url = f'/web/image/hr.employee/{employee_id}/{field_name}'
-            return request.redirect(image_url)
+            image_data = employee[field_name]
+            if not image_data:
+                return request.not_found()
+            
+            # Trả về binary image trực tiếp
+            response = request.make_response(base64.b64decode(image_data), 
+                                            headers=[('Content-Type', 'image/png')])
+            return self._add_cors_headers(response)
         except Exception as e:
-            return request.make_response(json.dumps({'success': False, 'error': str(e)}), headers=[('Content-Type', 'application/json')])
+            return request.make_response(json.dumps({'success': False, 'error': str(e)}), 
+                                          headers=[('Content-Type', 'application/json')])
