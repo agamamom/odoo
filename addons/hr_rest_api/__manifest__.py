@@ -10,13 +10,7 @@
     'category': 'Human Resources/API',
     'depends': [
         'hr', 
-        'base',
-        'hr_payroll_community',
-        'hr_payroll_account_community',
-        'hr_work_entry_holidays',
-        'ohrms_loan',
-        'ohrms_salary_advance',
-        'ohrms_loan_accounting'
+        'base'
     ],
     'data': [
         'security/ir.model.access.csv',

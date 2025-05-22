@@ -3,7 +3,25 @@ from odoo.http import request
 from odoo.addons.hr_rest_api.controllers.main import HrRestApiController
 import json
 from datetime import datetime
-from dateutil import relativedelta
+import logging
+
+_logger = logging.getLogger(__name__)
+
+# Check if required modules are installed
+PAYROLL_INSTALLED = False
+PAYROLL_ACCOUNTING_INSTALLED = False
+
+try:
+    from dateutil import relativedelta
+    from odoo.addons.hr_payroll_community.models.hr_payslip import HrPayslip
+    PAYROLL_INSTALLED = True
+    try:
+        from odoo.addons.hr_payroll_account_community.models.hr_payslip import HrPayslip as HrPayslipAccounting
+        PAYROLL_ACCOUNTING_INSTALLED = True
+    except ImportError:
+        _logger.info("hr_payroll_account_community module not installed, accounting features will be disabled")
+except ImportError:
+    _logger.info("hr_payroll_community module not installed, payroll features will be disabled")
 
 class HrPayrollAdminRestApiController(HrRestApiController):
     # --- Helper for generic CRUD ---
@@ -12,6 +30,12 @@ class HrPayrollAdminRestApiController(HrRestApiController):
         # List
         @http.route(f'/api/hr/{route_base}', type='http', auth='public', methods=['GET'], csrf=False)
         def list_records(self, **kw):
+            # Check if the model exists in the registry
+            if model not in request.env:
+                result = {'success': False, 'error': f'Model {model} is not installed'}
+                response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+                return self._add_cors_headers(response)
+                
             domain = []
             limit = int(kw.get('limit', 100))
             offset = int(kw.get('offset', 0))
@@ -22,12 +46,24 @@ class HrPayrollAdminRestApiController(HrRestApiController):
         # Get
         @http.route(f'/api/hr/{route_base}/<int:rec_id>', type='http', auth='public', methods=['GET'], csrf=False)
         def get_record(self, rec_id, **kw):
+            # Check if the model exists in the registry
+            if model not in request.env:
+                result = {'success': False, 'error': f'Model {model} is not installed'}
+                response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+                return self._add_cors_headers(response)
+                
             result = self._handle_request(model, ['*'], [('id', '=', rec_id)], 1)
             response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
             return self._add_cors_headers(response)
         # Create
         @http.route(f'/api/hr/{route_base}', type='json', auth='public', methods=['POST'], csrf=False)
         def create_record(self, **kw):
+            # Check if the model exists in the registry
+            if model not in request.env:
+                result = {'success': False, 'error': f'Model {model} is not installed'}
+                response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+                return self._add_cors_headers(response)
+                
             data = kw.get('data') or kw
             result = self._handle_create(model, data)
             response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
@@ -35,6 +71,12 @@ class HrPayrollAdminRestApiController(HrRestApiController):
         # Update
         @http.route(f'/api/hr/{route_base}/<int:rec_id>', type='json', auth='public', methods=['PUT'], csrf=False)
         def update_record(self, rec_id, **kw):
+            # Check if the model exists in the registry
+            if model not in request.env:
+                result = {'success': False, 'error': f'Model {model} is not installed'}
+                response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+                return self._add_cors_headers(response)
+                
             data = kw.get('data') or kw
             result = self._handle_update(model, rec_id, data)
             response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
@@ -42,6 +84,12 @@ class HrPayrollAdminRestApiController(HrRestApiController):
         # Delete
         @http.route(f'/api/hr/{route_base}/<int:rec_id>', type='http', auth='public', methods=['DELETE'], csrf=False)
         def delete_record(self, rec_id, **kw):
+            # Check if the model exists in the registry
+            if model not in request.env:
+                result = {'success': False, 'error': f'Model {model} is not installed'}
+                response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+                return self._add_cors_headers(response)
+                
             result = self._handle_delete(model, rec_id)
             response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
             return self._add_cors_headers(response)
@@ -63,25 +111,41 @@ class HrPayrollAdminRestApiController(HrRestApiController):
     def __init__(self):
         # Register CRUD for each model
         super().__init__()
-        # Core payroll models
-        self._generic_crud_routes('hr.payslip.run', 'payslip_runs', ['id','name','state','date_start','date_end','credit_note','journal_id'])
-        self._generic_crud_routes('hr.salary.rule', 'salary_rules', ['id','name','code','sequence','category_id','active','amount_select','amount_fix','amount_percentage','amount_python_compute','parent_rule_id','company_id','account_debit_id','account_credit_id','account_tax_id','analytic_account_id'])
-        self._generic_crud_routes('hr.salary.rule.category', 'salary_rule_categories', ['id','name','code','parent_id','company_id'])
-        self._generic_crud_routes('hr.payroll.structure', 'payroll_structures', ['id','name','code','company_id','parent_id','note'])
-        self._generic_crud_routes('hr.payslip.line', 'payslip_lines', ['id','slip_id','salary_rule_id','employee_id','contract_id','rate','amount','quantity','total'])
-        self._generic_crud_routes('hr.payslip.input', 'payslip_inputs', ['id','name','payslip_id','sequence','code','date_from','date_to','amount','contract_id'])
-        self._generic_crud_routes('hr.payslip.worked.days', 'payslip_worked_days', ['id','name','payslip_id','sequence','code','number_of_days','number_of_hours','contract_id'])
-        self._generic_crud_routes('hr.contribution.register', 'contribution_registers', ['id','name','company_id','partner_id','note'])
-        self._generic_crud_routes('hr.rule.input', 'rule_inputs', ['id','name','code','input_id'])
-        self._generic_crud_routes('hr.contract.advantage.template', 'contract_advantage_templates', ['id','name','code','lower_bound','upper_bound','default_value'])
-        # Additional accounting related endpoints
-        self._generic_crud_routes('account.journal', 'payroll_journals', ['id','name','type','company_id','default_account_id'])
-        self._generic_crud_routes('account.account', 'accounts', ['id','name','code','account_type','company_id'])
-        self._generic_crud_routes('account.analytic.account', 'analytic_accounts', ['id','name','code','company_id'])
+        
+        if PAYROLL_INSTALLED:
+            # Core payroll models
+            self._generic_crud_routes('hr.payslip.run', 'payslip_runs', ['id','name','state','date_start','date_end','credit_note'])
+            self._generic_crud_routes('hr.salary.rule', 'salary_rules', ['id','name','code','sequence','category_id','active','amount_select','amount_fix','amount_percentage','amount_python_compute','parent_rule_id','company_id'])
+            self._generic_crud_routes('hr.salary.rule.category', 'salary_rule_categories', ['id','name','code','parent_id','company_id'])
+            self._generic_crud_routes('hr.payroll.structure', 'payroll_structures', ['id','name','code','company_id','parent_id','note'])
+            self._generic_crud_routes('hr.payslip.line', 'payslip_lines', ['id','slip_id','salary_rule_id','employee_id','contract_id','rate','amount','quantity','total'])
+            self._generic_crud_routes('hr.payslip.input', 'payslip_inputs', ['id','name','payslip_id','sequence','code','date_from','date_to','amount','contract_id'])
+            self._generic_crud_routes('hr.payslip.worked.days', 'payslip_worked_days', ['id','name','payslip_id','sequence','code','number_of_days','number_of_hours','contract_id'])
+            self._generic_crud_routes('hr.contribution.register', 'contribution_registers', ['id','name','company_id','partner_id','note'])
+            self._generic_crud_routes('hr.rule.input', 'rule_inputs', ['id','name','code','input_id'])
+            self._generic_crud_routes('hr.contract.advantage.template', 'contract_advantage_templates', ['id','name','code','lower_bound','upper_bound','default_value'])
+            
+        if PAYROLL_ACCOUNTING_INSTALLED:
+            # Additional accounting related endpoints
+            self._generic_crud_routes('account.journal', 'payroll_journals', ['id','name','type','company_id','default_account_id'])
+            self._generic_crud_routes('account.account', 'accounts', ['id','name','code','account_type','company_id'])
+            self._generic_crud_routes('account.analytic.account', 'analytic_accounts', ['id','name','code','company_id'])
+
+    # --- Common error handler for missing modules ---
+    def _missing_module_response(self, module_name):
+        result = {
+            'success': False,
+            'error': f'This feature requires the {module_name} module which is not installed'
+        }
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
 
     # --- Payslip Batch Actions ---
     @http.route('/api/hr/payslip_runs/<int:rec_id>/close', type='http', auth='public', methods=['POST'], csrf=False)
     def close_payslip_run(self, rec_id, **kw):
+        if not PAYROLL_INSTALLED:
+            return self._missing_module_response('hr_payroll_community')
+            
         is_valid, user = self._validate_api_key()
         if not is_valid:
             response = request.make_response(json.dumps(user), headers=[('Content-Type', 'application/json')])
@@ -100,6 +164,9 @@ class HrPayrollAdminRestApiController(HrRestApiController):
 
     @http.route('/api/hr/payslip_runs/<int:rec_id>/set_draft', type='http', auth='public', methods=['POST'], csrf=False)
     def set_draft_payslip_run(self, rec_id, **kw):
+        if not PAYROLL_INSTALLED:
+            return self._missing_module_response('hr_payroll_community')
+            
         is_valid, user = self._validate_api_key()
         if not is_valid:
             response = request.make_response(json.dumps(user), headers=[('Content-Type', 'application/json')])
@@ -119,6 +186,9 @@ class HrPayrollAdminRestApiController(HrRestApiController):
     # --- Batch Payslip Generation Wizard ---
     @http.route('/api/hr/payslip_runs/<int:run_id>/generate_payslips', type='http', auth='public', methods=['POST'], csrf=False)
     def generate_batch_payslips(self, run_id, **kw):
+        if not PAYROLL_INSTALLED:
+            return self._missing_module_response('hr_payroll_community')
+            
         is_valid, user = self._validate_api_key()
         if not is_valid:
             response = request.make_response(json.dumps(user), headers=[('Content-Type', 'application/json')])
@@ -175,6 +245,9 @@ class HrPayrollAdminRestApiController(HrRestApiController):
     # --- Contribution Register Report Wizard ---
     @http.route('/api/hr/contribution_registers/report', type='http', auth='public', methods=['POST'], csrf=False)
     def contribution_register_report(self, **kw):
+        if not PAYROLL_INSTALLED:
+            return self._missing_module_response('hr_payroll_community')
+            
         is_valid, user = self._validate_api_key()
         if not is_valid:
             response = request.make_response(json.dumps(user), headers=[('Content-Type', 'application/json')])
@@ -193,8 +266,17 @@ class HrPayrollAdminRestApiController(HrRestApiController):
             return self._add_cors_headers(response)
         
         # Get date range or use defaults
-        date_from = data.get('date_from', datetime.now().strftime('%Y-%m-01'))
-        date_to = data.get('date_to', (datetime.now() + relativedelta.relativedelta(months=+1, day=1, days=-1)).strftime('%Y-%m-%d'))
+        if 'relativedelta' not in globals():
+            # Import failed, let's use a simple alternative
+            today = datetime.now()
+            date_from = data.get('date_from', f"{today.year}-{today.month:02d}-01")
+            next_month = today.month + 1 if today.month < 12 else 1
+            next_year = today.year + 1 if today.month == 12 else today.year
+            last_day = 30  # Simplified approach
+            date_to = data.get('date_to', f"{next_year}-{next_month:02d}-{last_day:02d}")
+        else:
+            date_from = data.get('date_from', datetime.now().strftime('%Y-%m-01'))
+            date_to = data.get('date_to', (datetime.now() + relativedelta.relativedelta(months=+1, day=1, days=-1)).strftime('%Y-%m-%d'))
         
         # Create context for wizard
         context = {
@@ -241,6 +323,9 @@ class HrPayrollAdminRestApiController(HrRestApiController):
     # --- Payslip Accounting Entries ---
     @http.route('/api/hr/payslips/<int:payslip_id>/accounting_entries', type='http', auth='public', methods=['GET'], csrf=False)
     def get_payslip_accounting_entries(self, payslip_id, **kw):
+        if not PAYROLL_ACCOUNTING_INSTALLED:
+            return self._missing_module_response('hr_payroll_account_community')
+            
         is_valid, user = self._validate_api_key()
         if not is_valid:
             response = request.make_response(json.dumps(user), headers=[('Content-Type', 'application/json')])
@@ -252,6 +337,11 @@ class HrPayrollAdminRestApiController(HrRestApiController):
             response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
             return self._add_cors_headers(response)
         
+        if not hasattr(payslip, 'move_id'):
+            result = {'success': False, 'error': 'Accounting not enabled for payslips'}
+            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+            
         if not payslip.move_id:
             result = {
                 'success': True,
@@ -293,6 +383,8 @@ class HrPayrollAdminRestApiController(HrRestApiController):
         '/api/hr/payslip_runs/<int:run_id>/generate_payslips',
         '/api/hr/contribution_registers/report',
         '/api/hr/payslips/<int:payslip_id>/accounting_entries',
+        '/api/hr/payslip_runs/<int:rec_id>/close',
+        '/api/hr/payslip_runs/<int:rec_id>/set_draft'
     ], type='http', auth='public', methods=['OPTIONS'], csrf=False)
     def options_payroll_accounting_endpoints(self, **kw):
         """Handle OPTIONS request for payroll accounting endpoints"""
