@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <data noupdate="1">
+        <!-- Bảo hiểm xã hội (BHXH) -->
+        <record id="insurance_policy_bhxh" model="insurance.policy">
+            <field name="name">Bảo hiểm xã hội (BHXH)</field>
+            <field name="is_social_insurance" eval="True"/>
+            <field name="coverage_type">bhxh</field>
+            <field name="employee_rate">8</field>
+            <field name="company_rate">17.5</field>
+            <field name="note"><![CDATA[
+                <p>Bảo hiểm xã hội theo quy định hiện hành:</p>
+                <ul>
+                    <li>Người lao động đóng: 8% lương cơ bản</li>
+                    <li>Doanh nghiệp đóng: 17.5% lương cơ bản</li>
+                </ul>
+                <p>Áp dụng trên lương cơ bản và các khoản phụ cấp chịu BHXH</p>
+            ]]></field>
+        </record>
+
+        <!-- Bảo hiểm y tế (BHYT) -->
+        <record id="insurance_policy_bhyt" model="insurance.policy">
+            <field name="name">Bảo hiểm y tế (BHYT)</field>
+            <field name="is_social_insurance" eval="True"/>
+            <field name="coverage_type">bhyt</field>
+            <field name="employee_rate">1.5</field>
+            <field name="company_rate">3</field>
+            <field name="note"><![CDATA[
+                <p>Bảo hiểm y tế theo quy định hiện hành:</p>
+                <ul>
+                    <li>Người lao động đóng: 1.5% lương cơ bản</li>
+                    <li>Doanh nghiệp đóng: 3% lương cơ bản</li>
+                </ul>
+                <p>Áp dụng trên lương cơ bản và các khoản phụ cấp chịu BHXH</p>
+            ]]></field>
+        </record>
+
+        <!-- Bảo hiểm thất nghiệp (BHTN) -->
+        <record id="insurance_policy_bhtn" model="insurance.policy">
+            <field name="name">Bảo hiểm thất nghiệp (BHTN)</field>
+            <field name="is_social_insurance" eval="True"/>
+            <field name="coverage_type">bhtn</field>
+            <field name="employee_rate">1</field>
+            <field name="company_rate">1</field>
+            <field name="note"><![CDATA[
+                <p>Bảo hiểm thất nghiệp theo quy định hiện hành:</p>
+                <ul>
+                    <li>Người lao động đóng: 1% lương cơ bản</li>
+                    <li>Doanh nghiệp đóng: 1% lương cơ bản</li>
+                </ul>
+                <p>Áp dụng trên lương cơ bản và các khoản phụ cấp chịu BHXH</p>
+                <p>Chỉ áp dụng cho hợp đồng không xác định thời hạn hoặc hợp đồng có thời hạn từ đủ 3 tháng trở lên</p>
+            ]]></field>
+        </record>
+    </data>
+</odoo> 

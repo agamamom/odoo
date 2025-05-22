@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Extend the hr.attendance form view to add leave-related fields -->
+    <record id="hr_attendance_view_form_inherit_leave" model="ir.ui.view">
+        <field name="name">hr.attendance.form.inherit.leave</field>
+        <field name="model">hr.attendance</field>
+        <field name="inherit_id" ref="hr_attendance.hr_attendance_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet/group" position="inside">
+                <group string="Liên kết với đơn nghỉ phép" 
+                       name="leave_info_group" 
+                       invisible="not is_leave">
+                    <field name="is_leave" invisible="0"/>
+                    <field name="leave_id" readonly="1" invisible="not is_leave"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+    
+    <!-- Extend the hr.attendance list view to add leave-related fields -->
+    <record id="view_attendance_tree_inherit_leave" model="ir.ui.view">
+        <field name="name">hr.attendance.list.inherit.leave</field>
+        <field name="model">hr.attendance</field>
+        <field name="inherit_id" ref="hr_attendance.view_attendance_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='worked_hours']" position="after">
+                <field name="is_leave" optional="show"/>
+                <field name="leave_id" optional="show" 
+                       invisible="not is_leave"/>
+            </xpath>
+        </field>
+    </record>
+    
+    <!-- Extend the hr.attendance search view to filter by leave status -->
+    <record id="hr_attendance_view_filter_inherit_leave" model="ir.ui.view">
+        <field name="name">hr.attendance.search.inherit.leave</field>
+        <field name="model">hr.attendance</field>
+        <field name="inherit_id" ref="hr_attendance.hr_attendance_view_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//filter[@name='today']" position="after">
+                <separator/>
+                <filter string="Nghỉ phép" name="is_leave" domain="[('is_leave', '=', True)]"/>
+            </xpath>
+            <xpath expr="//filter[@name='employee']" position="after">
+                <filter string="Đơn nghỉ phép" name="leave_id" context="{'group_by': 'leave_id'}"/>
+            </xpath>
+        </field>
+    </record>
+    
+    <!-- Extend the hr.attendance list view to add leave-related fields -->
+    <record id="view_attendance_list_inherit_leave_basic" model="ir.ui.view">
+        <field name="name">hr.attendance.list.inherit.leave.basic</field>
+        <field name="model">hr.attendance</field>
+        <field name="inherit_id" ref="hr_attendance.view_attendance_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='worked_hours']" position="after">
+                <field name="is_leave" optional="show"/>
+                <field name="leave_id" optional="show" 
+                       invisible="not is_leave"/>
+            </xpath>
+        </field>
+    </record>
+</odoo> 

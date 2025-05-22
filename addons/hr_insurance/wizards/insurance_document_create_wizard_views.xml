@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Form view for Insurance Document Create Wizard -->
+    <record id="view_insurance_document_create_wizard_form" model="ir.ui.view">
+        <field name="name">insurance.document.create.wizard.form</field>
+        <field name="model">insurance.document.create.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Tạo tài liệu từ mẫu">
+                <sheet>
+                    <div class="alert alert-info text-center" role="alert">
+                        <strong>Tạo tài liệu bảo hiểm từ mẫu</strong>
+                        <p>Chọn các nhân viên cần tạo tài liệu và điền thông tin cần thiết.</p>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="template_id" readonly="1"/>
+                            <field name="document_type" invisible="1"/>
+                            <field name="employee_ids" widget="many2many_tags" options="{'no_create': True}" />
+                            <field name="insurance_ids" widget="many2many_tags" options="{'no_create': True}" 
+                                   invisible="document_type in ('bhxh_book', 'bhyt_card')" />
+                        </group>
+                        <group>
+                            <field name="date"/>
+                            <field name="deadline"/>
+                            <field name="officer_id" options="{'no_create': True}"/>
+                        </group>
+                    </group>
+                    
+                    <group>
+                        <group string="Thông tin bổ sung" 
+                               invisible="document_type not in ('adjustment', 'bhyt_card', 'bhxh_book')">
+                            <field name="adjustment_type" 
+                                   invisible="document_type != 'adjustment'" />
+                            <field name="bhyt_hospital" 
+                                   invisible="document_type != 'bhyt_card'" />
+                            <field name="bhxh_book_issue_place" 
+                                   invisible="document_type != 'bhxh_book'" />
+                        </group>
+                    </group>
+                    
+                    <field name="notes" placeholder="Ghi chú..." />
+                </sheet>
+                <footer>
+                    <button name="action_create_documents" string="Tạo tài liệu" type="object" class="btn-primary"/>
+                    <button string="Hủy" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+    
+    <!-- Action for Create Documents from Template -->
+    <record id="action_create_documents_from_template" model="ir.actions.act_window">
+        <field name="name">Tạo tài liệu từ mẫu</field>
+        <field name="res_model">insurance.document.create.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_insurance_document_create_wizard_form"/>
+        <field name="target">new</field>
+    </record>
+</odoo> 

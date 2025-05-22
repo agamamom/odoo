@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Form View for Social Insurance Code Wizard -->
+    <record id="view_social_insurance_code_wizard_form" model="ir.ui.view">
+        <field name="name">social.insurance.code.wizard.form</field>
+        <field name="model">social.insurance.code.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Cập nhật mã số BHXH">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="update_option" widget="radio"/>
+                        </group>
+                        <group>
+                            <field name="employee_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Chi tiết mã số BHXH" name="details" invisible="update_option != 'individual'">
+                            <field name="line_ids">
+                                <list editable="bottom">
+                                    <field name="employee_id" readonly="1"/>
+                                    <field name="social_insurance_code"/>
+                                    <field name="social_insurance_status"/>
+                                    <field name="social_insurance_issue_date"/>
+                                    <field name="social_insurance_place"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Cập nhật hàng loạt" name="batch_update" invisible="update_option != 'status'">
+                            <group>
+                                <group>
+                                    <field name="social_insurance_status" string="Trạng thái BHXH mới"/>
+                                    <field name="social_insurance_issue_date"/>
+                                </group>
+                                <group>
+                                    <field name="social_insurance_place"/>
+                                </group>
+                            </group>
+                        </page>
+                    </notebook>
+                    <group string="Ghi chú">
+                        <field name="note" nolabel="1" placeholder="Nhập ghi chú áp dụng cho tất cả nhân viên..."/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_update_social_insurance" string="Cập nhật" type="object" class="btn-primary"/>
+                    <button string="Hủy" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+    
+    <!-- Action for Social Insurance Code Wizard -->
+    <record id="action_social_insurance_code_wizard" model="ir.actions.act_window">
+        <field name="name">Cập nhật mã số BHXH</field>
+        <field name="res_model">social.insurance.code.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+    
+    <!-- Multi-action from Employee list view -->
+    <record id="action_hr_employee_social_insurance_update" model="ir.actions.act_window">
+        <field name="name">Cập nhật mã số BHXH</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">social.insurance.code.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="binding_model_id" ref="hr.model_hr_employee"/>
+        <field name="target">new</field>
+        <field name="binding_view_types">list</field>
+        <field name="context">{'default_employee_ids': active_ids}</field>
+    </record>
+    
+    <!-- Menu Item -->
+    <menuitem id="menu_social_insurance_code_wizard"
+              name="Cập nhật mã số BHXH"
+              parent="hr_insurance_menu"
+              action="action_social_insurance_code_wizard"
+              sequence="65"/>
+</odoo> 

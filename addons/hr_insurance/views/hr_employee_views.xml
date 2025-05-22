@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_employee_form_inherit_hr_insurance" model="ir.ui.view">
+        <field name="name">hr.employee.form.inherit.insurance</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="hr.view_employee_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='personal_information']" position="after">
+                <page string="Bảo hiểm" name="insurance">
+                    <div class="oe_button_box" name="social_insurance_button_box">
+                        <button name="%(hr_insurance.action_social_insurance_document)d" 
+                                type="action" 
+                                class="oe_stat_button"
+                                icon="fa-file-text-o"
+                                context="{'default_employee_id': id, 'search_default_employee_id': id}">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_text">Tài liệu BHXH</span>
+                            </div>
+                        </button>
+                        <button string="Lịch sử đóng BHXH"
+                                type="object"
+                                name="action_view_insurance_history"
+                                class="oe_stat_button"
+                                icon="fa-money">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_value"><field name="bhxh_months_count"/></span>
+                                <span class="o_stat_text"> Tháng đóng BHXH</span>
+                            </div>
+                        </button>
+                        <button string="Trợ cấp BHXH"
+                                type="object"
+                                name="action_view_insurance_benefits"
+                                class="oe_stat_button"
+                                icon="fa-plus-circle">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_text">Trợ cấp BHXH</span>
+                            </div>
+                        </button>
+                    </div>
+                    <group>
+                        <group string="Thông tin BHXH">
+                            <field name="social_insurance_code" placeholder="VD: 0123456789"/>
+                            <field name="social_insurance_status"/>
+                            <field name="has_social_insurance" invisible="1"/>
+                            <field name="social_insurance_issue_date"/>
+                            <field name="social_insurance_place"/>
+                            <field name="total_bhxh_paid" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                            <field name="total_benefits_received" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                        </group>
+                        <group string="Bảo hiểm hàng tháng">
+                            <field name="insurance_percentage"/>
+                            <field name="deduced_amount_per_month"/>
+                            <field name="deduced_amount_per_year"/>
+                            <field name="total_social_insurance" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                            <field name="bhxh_amount" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                            <field name="bhyt_amount" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                            <field name="bhtn_amount" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Hợp đồng bảo hiểm" name="insurance_contracts">
+                            <field name="insurance_ids" nolabel="1"/>
+                        </page>
+                        <page string="Lịch sử đóng BHXH" name="insurance_history">
+                            <field name="social_insurance_history_ids" nolabel="1" readonly="1" context="{'default_employee_id': id}"/>
+                        </page>
+                        <page string="Trợ cấp BHXH" name="insurance_benefits">
+                            <field name="social_insurance_benefit_ids" nolabel="1" readonly="1" context="{'default_employee_id': id}"/>
+                        </page>
+                        <page string="Tài liệu BHXH" name="insurance_documents">
+                            <group>
+                                <group string="Tài liệu BHXH">
+                                    <button name="%(hr_insurance.action_social_insurance_document)d" 
+                                            string="Tạo tài liệu đăng ký BHXH mới" 
+                                            type="action"
+                                            class="btn btn-primary" 
+                                            context="{'default_employee_id': id, 'default_document_type': 'registration'}"/>
+                                    <button name="%(hr_insurance.action_social_insurance_document)d" 
+                                            string="Tạo thẻ BHYT mới" 
+                                            type="action"
+                                            class="btn btn-primary" 
+                                            context="{'default_employee_id': id, 'default_document_type': 'bhyt_card'}"/>
+                                    <button name="%(hr_insurance.action_social_insurance_document)d" 
+                                            string="Cập nhật sổ BHXH" 
+                                            type="action"
+                                            class="btn btn-primary" 
+                                            context="{'default_employee_id': id, 'default_document_type': 'bhxh_book'}"/>
+                                </group>
+                                <group string="Biểu mẫu điều chỉnh">
+                                    <button name="%(hr_insurance.action_social_insurance_document)d" 
+                                            string="Tạo tài liệu điều chỉnh thông tin" 
+                                            type="action"
+                                            class="btn btn-secondary" 
+                                            context="{'default_employee_id': id, 'default_document_type': 'adjustment'}"/>
+                                    <button name="%(hr_insurance.action_social_insurance_document)d" 
+                                            string="Tạo mẫu TK1-TS" 
+                                            type="action"
+                                            class="btn btn-secondary" 
+                                            context="{'default_employee_id': id, 'default_document_type': 'tk1_ts'}"/>
+                                    <button name="%(hr_insurance.action_social_insurance_document)d" 
+                                            string="Tạo mẫu TK3-TS" 
+                                            type="action"
+                                            class="btn btn-secondary" 
+                                            context="{'default_employee_id': id, 'default_document_type': 'tk3_ts'}"/>
+                                </group>
+                            </group>
+                            <field name="social_insurance_document_ids" 
+                                   context="{'default_employee_id': id}"/>
+                        </page>
+                        <page string="Ghi chú" name="insurance_notes">
+                            <field name="social_insurance_note" nolabel="1" placeholder="Nhập ghi chú về quá trình đóng BHXH của nhân viên..."/>
+                        </page>
+                    </notebook>
+                    <group>
+                        <button name="action_verify_social_insurance_code" 
+                                string="Xác thực mã số BHXH" 
+                                type="object" 
+                                class="btn-primary"
+                                invisible="not social_insurance_code or social_insurance_status == 'active'"/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="inherited_hr_employee_tree_view" model="ir.ui.view">
+        <field name="name">hr.employee.insurance.tree.inherit</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="hr.view_employee_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='work_phone']" position="after">
+                <field name="social_insurance_code" optional="show"/>
+                <field name="social_insurance_status" optional="hide"/>
+                <field name="has_social_insurance" optional="hide"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="inherited_hr_employee_search_view" model="ir.ui.view">
+        <field name="name">hr.employee.insurance.search.inherit</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="hr.view_employee_filter"/>
+        <field name="arch" type="xml">
+            <field name="name" position="after">
+                <field name="social_insurance_code"/>
+            </field>
+            <filter name="inactive" position="after">
+                <separator/>
+                <filter string="Đã có BHXH" name="has_social_insurance" domain="[('has_social_insurance', '=', True)]"/>
+                <filter string="Chưa có BHXH" name="no_social_insurance" domain="[('has_social_insurance', '=', False)]"/>
+                <separator/>
+                <filter string="BHXH đã kích hoạt" name="active_social_insurance" domain="[('social_insurance_status', '=', 'active')]"/>
+                <filter string="BHXH đang chờ xử lý" name="pending_social_insurance" domain="[('social_insurance_status', '=', 'pending')]"/>
+            </filter>
+            <filter name="group_department" position="after">
+                <filter name="group_social_insurance_status" string="Trạng thái BHXH" context="{'group_by': 'social_insurance_status'}"/>
+            </filter>
+        </field>
+    </record>
+</odoo>
+

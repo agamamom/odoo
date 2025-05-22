@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Báo cáo bảo hiểm -->
+    <template id="report_insurance">
+        <t t-call="web.html_container">
+            <t t-call="web.external_layout">
+                <div class="page">
+                    <h2 class="text-center">Báo cáo bảo hiểm</h2>
+                    
+                    <div class="row mt16 mb16">
+                        <div class="col-6">
+                            <strong>Công ty:</strong> <span t-esc="company_name"/>
+                        </div>
+                        <div class="col-6">
+                            <strong>Phòng ban:</strong> <span t-esc="department_name"/>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-6">
+                            <strong>Từ ngày:</strong> <span t-esc="date_from" t-options="{'widget': 'date'}"/>
+                        </div>
+                        <div class="col-6">
+                            <strong>Đến ngày:</strong> <span t-esc="date_to" t-options="{'widget': 'date'}"/>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            <strong>Loại bảo hiểm:</strong> <span t-esc="insurance_type"/>
+                        </div>
+                    </div>
+                    
+                    <table class="table table-bordered mt16">
+                        <thead>
+                            <tr class="text-center">
+                                <th>STT</th>
+                                <th>Nhân viên</th>
+                                <th>Phòng ban</th>
+                                <th>Loại bảo hiểm</th>
+                                <th>Lương đóng BH</th>
+                                <th>NV đóng (%)</th>
+                                <th>Công ty đóng (%)</th>
+                                <th>NV đóng</th>
+                                <th>Công ty đóng</th>
+                                <th>Tổng cộng</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <t t-foreach="insurance_records" t-as="record">
+                                <tr>
+                                    <td class="text-center"><span t-esc="record_index + 1"/></td>
+                                    <td><span t-esc="record['employee_name']"/></td>
+                                    <td><span t-esc="record['department']"/></td>
+                                    <td><span t-esc="record['insurance_type']"/></td>
+                                    <td class="text-right">
+                                        <span t-esc="record['salary_base']" t-options="{'widget': 'monetary', 'display_currency': res_company.currency_id}"/>
+                                    </td>
+                                    <td class="text-center"><span t-esc="record['employee_rate']"/>%</td>
+                                    <td class="text-center"><span t-esc="record['company_rate']"/>%</td>
+                                    <td class="text-right">
+                                        <span t-esc="record['employee_contribution']" t-options="{'widget': 'monetary', 'display_currency': res_company.currency_id}"/>
+                                    </td>
+                                    <td class="text-right">
+                                        <span t-esc="record['company_contribution']" t-options="{'widget': 'monetary', 'display_currency': res_company.currency_id}"/>
+                                    </td>
+                                    <td class="text-right">
+                                        <span t-esc="record['total_contribution']" t-options="{'widget': 'monetary', 'display_currency': res_company.currency_id}"/>
+                                    </td>
+                                </tr>
+                            </t>
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="7" class="text-right"><strong>Tổng cộng</strong></td>
+                                <td class="text-right">
+                                    <strong>
+                                        <span t-esc="total_employee" t-options="{'widget': 'monetary', 'display_currency': res_company.currency_id}"/>
+                                    </strong>
+                                </td>
+                                <td class="text-right">
+                                    <strong>
+                                        <span t-esc="total_company" t-options="{'widget': 'monetary', 'display_currency': res_company.currency_id}"/>
+                                    </strong>
+                                </td>
+                                <td class="text-right">
+                                    <strong>
+                                        <span t-esc="total_all" t-options="{'widget': 'monetary', 'display_currency': res_company.currency_id}"/>
+                                    </strong>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    
+                    <!-- Lịch sử thanh toán -->
+                    <t t-if="include_payment_history">
+                        <h3 class="mt32">Lịch sử thanh toán</h3>
+                        <div class="row mb16">
+                            <div class="col-6">
+                                <strong>Từ ngày:</strong> <span t-esc="payment_from_date" t-options="{'widget': 'date'}"/>
+                            </div>
+                            <div class="col-6">
+                                <strong>Đến ngày:</strong> <span t-esc="payment_to_date" t-options="{'widget': 'date'}"/>
+                            </div>
+                        </div>
+                        
+                        <table t-if="payment_history" class="table table-bordered">
+                            <thead>
+                                <tr class="text-center">
+                                    <th>STT</th>
+                                    <th>Mã thanh toán</th>
+                                    <th>Ngày thanh toán</th>
+                                    <th>Kỳ</th>
+                                    <th>BHXH</th>
+                                    <th>BHYT</th>
+                                    <th>BHTN</th>
+                                    <th>Số tiền</th>
+                                    <th>Số nhân viên</th>
+                                    <th>Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="payment_history" t-as="payment">
+                                    <tr>
+                                        <td class="text-center"><span t-esc="payment_index + 1"/></td>
+                                        <td><span t-esc="payment['name']"/></td>
+                                        <td><span t-esc="payment['payment_date']" t-options="{'widget': 'date'}"/></td>
+                                        <td><span t-esc="payment['period']"/></td>
+                                        <td class="text-right">
+                                            <span t-esc="payment['bhxh_amount']" t-options="{'widget': 'monetary', 'display_currency': res_company.currency_id}"/>
+                                        </td>
+                                        <td class="text-right">
+                                            <span t-esc="payment['bhyt_amount']" t-options="{'widget': 'monetary', 'display_currency': res_company.currency_id}"/>
+                                        </td>
+                                        <td class="text-right">
+                                            <span t-esc="payment['bhtn_amount']" t-options="{'widget': 'monetary', 'display_currency': res_company.currency_id}"/>
+                                        </td>
+                                        <td class="text-right">
+                                            <span t-esc="payment['payment_amount']" t-options="{'widget': 'monetary', 'display_currency': res_company.currency_id}"/>
+                                        </td>
+                                        <td class="text-center"><span t-esc="payment['employee_count']"/></td>
+                                        <td><span t-esc="payment['state']"/></td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="7" class="text-right"><strong>Tổng cộng</strong></td>
+                                    <td class="text-right">
+                                        <strong>
+                                            <span t-esc="total_payment_amount" t-options="{'widget': 'monetary', 'display_currency': res_company.currency_id}"/>
+                                        </strong>
+                                    </td>
+                                    <td colspan="2"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                        <div t-if="not payment_history" class="alert alert-info text-center">
+                            <strong>Không tìm thấy dữ liệu thanh toán trong khoảng thời gian đã chọn.</strong>
+                        </div>
+                    </t>
+                    
+                    <div class="row mt32">
+                        <div class="col-6 text-center">
+                            <p><strong>Người lập báo cáo</strong></p>
+                            <p class="mt32">(Ký và ghi rõ họ tên)</p>
+                        </div>
+                        <div class="col-6 text-center">
+                            <p><strong>Giám đốc</strong></p>
+                            <p class="mt32">(Ký và ghi rõ họ tên)</p>
+                        </div>
+                    </div>
+                </div>
+            </t>
+        </t>
+    </template>
+    
+    <!-- Định nghĩa Action báo cáo -->
+    <record id="action_insurance_report" model="ir.actions.report">
+        <field name="name">Báo cáo bảo hiểm</field>
+        <field name="model">hr.insurance</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">hr_insurance.report_insurance</field>
+        <field name="report_file">hr_insurance.report_insurance</field>
+        <field name="binding_model_id" ref="model_hr_insurance"/>
+        <field name="binding_type">report</field>
+    </record>
+</odoo> 

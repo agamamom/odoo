@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_insurance_payment" model="ir.sequence">
+            <field name="name">Insurance Payment</field>
+            <field name="code">insurance.payment</field>
+            <field name="prefix">INS/PAY/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+            <field name="implementation">standard</field>
+            <field name="use_date_range">False</field>
+        </record>
+        <record id="seq_insurance_allowance" model="ir.sequence">
+            <field name="name">Insurance Allowance</field>
+            <field name="code">insurance.allowance</field>
+            <field name="prefix">ALLOW/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo> 

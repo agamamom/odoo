@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Template cho báo cáo D03-TS -->
+    <template id="d03_ts_report">
+        <t t-call="web.html_container">
+            <t t-call="web.external_layout">
+                <div class="page">
+                    <h2 class="text-center">BÁO CÁO THAY ĐỔI THÔNG TIN NGƯỜI THAM GIA BHXH</h2>
+                    <p class="text-center">Kỳ báo cáo: <t t-esc="date_from" t-options="{'widget': 'date'}"/> - <t t-esc="date_to" t-options="{'widget': 'date'}"/></p>
+                    
+                    <div class="row mt16 mb16">
+                        <div class="col-6">
+                            <strong>Công ty:</strong> <span t-esc="company.name"/>
+                        </div>
+                        <div class="col-6">
+                            <strong>Mã số thuế:</strong> <span t-esc="company.vat or ''"/>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb16">
+                        <div class="col-12">
+                            <strong>Địa chỉ:</strong> <span t-esc="company.street or ''"/>
+                        </div>
+                    </div>
+                    
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr class="text-center">
+                                <th>STT</th>
+                                <th>Mã NV</th>
+                                <th>Họ và tên</th>
+                                <th>Mã số BHXH</th>
+                                <th>CMND/CCCD</th>
+                                <th>Loại thay đổi</th>
+                                <th>Ngày thay đổi</th>
+                                <th>Loại bảo hiểm</th>
+                                <th>Lương đóng BH</th>
+                                <th>Trạng thái</th>
+                                <th>Lý do thay đổi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <t t-foreach="change_records" t-as="record">
+                                <tr>
+                                    <td class="text-center"><span t-esc="record_index + 1"/></td>
+                                    <td><span t-esc="record['employee_code']"/></td>
+                                    <td><span t-esc="record['employee_name']"/></td>
+                                    <td><span t-esc="record['social_insurance_code']"/></td>
+                                    <td><span t-esc="record['identification_id']"/></td>
+                                    <td><span t-esc="record['change_type_name']"/></td>
+                                    <td><span t-esc="record['change_date']" t-options="{'widget': 'date'}"/></td>
+                                    <td><span t-esc="record['insurance_type']"/></td>
+                                    <td class="text-right">
+                                        <span t-esc="record['salary_base']" t-options="{'widget': 'monetary', 'display_currency': company.currency_id}"/>
+                                    </td>
+                                    <td class="text-center"><span t-esc="record['state']"/></td>
+                                    <td><span t-esc="record['reason']"/></td>
+                                </tr>
+                            </t>
+                        </tbody>
+                    </table>
+                    
+                    <div class="row mt16">
+                        <div class="col-12">
+                            <h4>TỔNG HỢP</h4>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td width="40%"><strong>Tổng số biến động:</strong></td>
+                                    <td><span t-esc="total_records"/></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Trong đó:</strong></td>
+                                    <td></td>
+                                </tr>
+                                <tr>
+                                    <td style="padding-left: 20px;">- Tham gia mới:</td>
+                                    <td><span t-esc="total_new"/></td>
+                                </tr>
+                                <tr>
+                                    <td style="padding-left: 20px;">- Kết thúc tham gia:</td>
+                                    <td><span t-esc="total_end"/></td>
+                                </tr>
+                                <tr>
+                                    <td style="padding-left: 20px;">- Thay đổi thông tin:</td>
+                                    <td><span t-esc="total_update"/></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt32">
+                        <div class="col-6 text-center">
+                            <p><strong>Người lập biểu</strong></p>
+                            <p class="mt32">(Ký, ghi rõ họ tên)</p>
+                        </div>
+                        <div class="col-6 text-center">
+                            <p><strong>Giám đốc</strong></p>
+                            <p class="mt32">(Ký, đóng dấu, ghi rõ họ tên)</p>
+                        </div>
+                    </div>
+                </div>
+            </t>
+        </t>
+    </template>
+    
+    <!-- Action báo cáo PDF -->
+    <record id="action_d03_ts_report" model="ir.actions.report">
+        <field name="name">Báo cáo D03-TS</field>
+        <field name="model">hr_insurance.d03_ts_report_wizard</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">hr_insurance.d03_ts_report</field>
+        <field name="report_file">hr_insurance.d03_ts_report</field>
+        <field name="binding_model_id" ref="model_hr_insurance_d03_ts_report_wizard"/>
+        <field name="binding_type">report</field>
+    </record>
+</odoo> 

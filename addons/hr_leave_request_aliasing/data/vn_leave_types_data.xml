@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Loại nghỉ phép theo quy định lao động Việt Nam -->
+        <record id="hr_leave_type_annual_vn" model="hr.leave.type">
+            <field name="name">Nghỉ phép năm</field>
+            <field name="code">AL</field>
+            <field name="requires_allocation">1</field>
+            <field name="leave_validation_type">hr</field>
+            <field name="allocation_validation_type">no</field>
+            <field name="request_unit">day</field>
+            <field name="unpaid">0</field>
+            <field name="color">2</field>
+            <field name="sequence">1</field>
+            <field name="time_type">leave</field>
+            <field name="country_id" ref="base.vn"/>
+            <field name="keywords_vi">phép năm, nghỉ phép, nghỉ thường niên, nghỉ bình thường, nghỉ hàng năm, xin nghỉ, xin phép, phép, nghỉ ngơi, nghỉ mát</field>
+            <field name="keywords_en">annual leave, leave, day off, vacation, personal leave, time off, regular leave</field>
+        </record>
+        
+        <record id="hr_leave_type_sick_vn" model="hr.leave.type">
+            <field name="name">Nghỉ ốm</field>
+            <field name="code">SL</field>
+            <field name="requires_allocation">0</field>
+            <field name="leave_validation_type">hr</field>
+            <field name="allocation_validation_type">no</field>
+            <field name="request_unit">day</field>
+            <field name="unpaid">0</field>
+            <field name="color">3</field>
+            <field name="sequence">2</field>
+            <field name="time_type">leave</field>
+            <field name="country_id" ref="base.vn"/>
+            <field name="is_sick_leave">1</field>
+            <field name="keywords_vi">ốm, bệnh, nghỉ ốm, đau ốm, bị ốm, không khỏe, bệnh viện, khám bệnh, chữa bệnh, sốt, bệnh tật, bác sĩ</field>
+            <field name="keywords_en">sick, illness, medical, doctor, sick leave, sickness, ill, hospital, clinic, unwell, not feeling well</field>
+        </record>
+        
+        <record id="hr_leave_type_maternity_vn" model="hr.leave.type">
+            <field name="name">Nghỉ thai sản</field>
+            <field name="code">ML</field>
+            <field name="requires_allocation">0</field>
+            <field name="leave_validation_type">hr</field>
+            <field name="allocation_validation_type">no</field>
+            <field name="request_unit">day</field>
+            <field name="unpaid">0</field>
+            <field name="color">4</field>
+            <field name="sequence">3</field>
+            <field name="time_type">leave</field>
+            <field name="country_id" ref="base.vn"/>
+            <field name="is_maternity_leave">1</field>
+            <field name="keywords_vi">thai sản, nghỉ thai sản, nghỉ đẻ, sinh con, mang thai, nghỉ sinh, thai nghén, bầu, nghỉ sinh con, nghỉ sau sinh, bé</field>
+            <field name="keywords_en">maternity, maternity leave, pregnancy, pregnant, baby, childbirth, delivery, natal</field>
+        </record>
+        
+        <record id="hr_leave_type_personal_vn" model="hr.leave.type">
+            <field name="name">Nghỉ việc riêng có lương</field>
+            <field name="code">PL</field>
+            <field name="requires_allocation">0</field>
+            <field name="leave_validation_type">hr</field>
+            <field name="allocation_validation_type">no</field>
+            <field name="request_unit">day</field>
+            <field name="unpaid">0</field>
+            <field name="color">5</field>
+            <field name="sequence">4</field>
+            <field name="time_type">leave</field>
+            <field name="country_id" ref="base.vn"/>
+            <field name="keywords_vi">việc riêng, kết hôn, cưới, đám tang, việc gia đình, nghỉ có lương, gia đình, đám cưới, đám hỏi, hiếu hỉ, ma chay</field>
+            <field name="keywords_en">personal business, personal leave, wedding, funeral, family matter, family emergency, paid leave</field>
+        </record>
+        
+        <record id="hr_leave_type_holiday_vn" model="hr.leave.type">
+            <field name="name">Nghỉ lễ, Tết</field>
+            <field name="code">HL</field>
+            <field name="requires_allocation">0</field>
+            <field name="leave_validation_type">hr</field>
+            <field name="allocation_validation_type">no</field>
+            <field name="request_unit">day</field>
+            <field name="unpaid">0</field>
+            <field name="color">1</field>
+            <field name="sequence">5</field>
+            <field name="time_type">leave</field>
+            <field name="country_id" ref="base.vn"/>
+            <field name="keywords_vi">lễ, tết, nghỉ lễ, ngày lễ, quốc khánh, nghỉ tết, dịp lễ, ngày nghỉ lễ</field>
+            <field name="keywords_en">holiday, public holiday, national holiday, holiday leave, long weekend</field>
+        </record>
+        
+        <record id="hr_leave_type_unpaid_vn" model="hr.leave.type">
+            <field name="name">Nghỉ không lương</field>
+            <field name="code">UL</field>
+            <field name="requires_allocation">0</field>
+            <field name="leave_validation_type">hr</field>
+            <field name="allocation_validation_type">no</field>
+            <field name="request_unit">day</field>
+            <field name="unpaid">1</field>
+            <field name="color">6</field>
+            <field name="sequence">6</field>
+            <field name="time_type">leave</field>
+            <field name="country_id" ref="base.vn"/>
+            <field name="keywords_vi">không lương, nghỉ không lương, nghỉ ko lương, nghỉ k lương, ko lương, k lương, không trả lương, không nhận lương</field>
+            <field name="keywords_en">unpaid, unpaid leave, leave without pay, no pay leave, without salary</field>
+        </record>
+        
+        <record id="hr_leave_type_parental_vn" model="hr.leave.type">
+            <field name="name">Nghỉ chăm sóc con</field>
+            <field name="code">CL</field>
+            <field name="requires_allocation">0</field>
+            <field name="leave_validation_type">hr</field>
+            <field name="allocation_validation_type">no</field>
+            <field name="request_unit">day</field>
+            <field name="unpaid">0</field>
+            <field name="color">7</field>
+            <field name="sequence">7</field>
+            <field name="time_type">leave</field>
+            <field name="country_id" ref="base.vn"/>
+            <field name="keywords_vi">chăm con, con cái, chăm sóc con, con ốm, con bệnh, chăm con bệnh, trông con, con nhỏ, con đau ốm</field>
+            <field name="keywords_en">parental leave, childcare, care for child, child sick, paternity leave, child illness</field>
+        </record>
+    </data>
+</odoo> 

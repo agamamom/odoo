@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Form view for Social Insurance Print Wizard -->
+    <record id="view_social_insurance_print_wizard_form" model="ir.ui.view">
+        <field name="name">social.insurance.print.wizard.form</field>
+        <field name="model">social.insurance.print.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Tạo biểu mẫu BHXH">
+                <sheet>
+                    <field name="state" invisible="1"/>
+                    <group invisible="state != 'choose'">
+                        <group>
+                            <field name="document_id" readonly="1"/>
+                            <field name="form_type"/>
+                        </group>
+                    </group>
+                    <div invisible="state != 'get'">
+                        <h4>Biểu mẫu đã sẵn sàng</h4>
+                        <p>Nhấn nút <b>Tải xuống</b> để tải file biểu mẫu.</p>
+                        <field name="file_name" invisible="1"/>
+                        <field name="file_data" readonly="1" filename="file_name"/>
+                    </div>
+                </sheet>
+                <footer>
+                    <button name="action_print_pdf" string="Xuất PDF" type="object" class="btn-primary" invisible="state != 'choose'"/>
+                    <button name="action_generate_excel" string="Xuất Excel" type="object" class="btn-primary" invisible="state != 'choose'"/>
+                    <button string="Tải xuống" name="action_generate_excel" type="object" class="btn-primary" invisible="state != 'get'"/>
+                    <button string="Hủy" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action for the wizard -->
+    <record id="action_social_insurance_print_wizard" model="ir.actions.act_window">
+        <field name="name">Tạo biểu mẫu BHXH</field>
+        <field name="res_model">social.insurance.print.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo> 

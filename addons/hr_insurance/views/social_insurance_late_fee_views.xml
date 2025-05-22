@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- List view for Social Insurance Late Fee -->
+    <record id="view_social_insurance_late_fee_list" model="ir.ui.view">
+        <field name="name">social.insurance.late.fee.list</field>
+        <field name="model">social.insurance.late.fee</field>
+        <field name="arch" type="xml">
+            <list string="Phí chậm nộp BHXH">
+                <field name="name" width="100"/>
+                <field name="employee_id" width="220"/>
+                <field name="year" width="80"/>
+                <field name="month" width="80"/>
+                <field name="date_from" width="100"/>
+                <field name="date_to" width="100"/>
+                <field name="days_late" width="100"/>
+                <field name="total_amount_pending" sum="Tổng thiếu" width="150"/>
+                <field name="interest_amount" sum="Tổng lãi" width="150"/>
+                <field name="total_payment" sum="Tổng cộng" width="150"/>
+                <field name="state" decoration-info="state == 'draft'" 
+                       decoration-success="state == 'paid'" 
+                       decoration-warning="state == 'confirmed'"
+                       decoration-danger="state == 'cancelled'"
+                       width="120"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form view for Social Insurance Late Fee -->
+    <record id="view_social_insurance_late_fee_form" model="ir.ui.view">
+        <field name="name">social.insurance.late.fee.form</field>
+        <field name="model">social.insurance.late.fee</field>
+        <field name="arch" type="xml">
+            <form string="Phí chậm nộp BHXH">
+                <header>
+                    <button name="action_confirm" string="Xác nhận" type="object" 
+                           class="oe_highlight" invisible="state != 'draft'"/>
+                    <button name="action_mark_as_paid" string="Đánh dấu đã đóng" type="object" 
+                           class="oe_highlight" invisible="state != 'confirmed'"/>
+                    <button name="action_cancel" string="Hủy" type="object" 
+                           invisible="state in ('cancelled')"/>
+                    <button name="action_reset_to_draft" string="Chuyển về dự thảo" type="object" 
+                           invisible="state != 'cancelled'"/>
+                    <field name="state" widget="statusbar" 
+                           statusbar_visible="draft,confirmed,paid"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="employee_id"/>
+                            <field name="insurance_id"/>
+                            <field name="period_type"/>
+                            <field name="is_company_responsibility"/>
+                        </group>
+                        <group>
+                            <field name="year" invisible="period_type != 'month'"/>
+                            <field name="month" invisible="period_type != 'month'"/>
+                            <field name="date_from" invisible="period_type != 'range'"/>
+                            <field name="date_to" invisible="period_type != 'range'"/>
+                            <field name="days_late"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Chi tiết khoản nợ BHXH" name="fee_details">
+                            <group>
+                                <field name="salary_base"/>
+                            </group>
+                            <group>
+                                <group string="BHXH">
+                                    <field name="bhxh_amount_due"/>
+                                    <field name="bhxh_amount_paid"/>
+                                    <field name="bhxh_amount_pending"/>
+                                </group>
+                                <group string="BHYT">
+                                    <field name="bhyt_amount_due"/>
+                                    <field name="bhyt_amount_paid"/>
+                                    <field name="bhyt_amount_pending"/>
+                                </group>
+                                <group string="BHTN">
+                                    <field name="bhtn_amount_due"/>
+                                    <field name="bhtn_amount_paid"/>
+                                    <field name="bhtn_amount_pending"/>
+                                </group>
+                                <group string="Tổng cộng">
+                                    <field name="total_amount_due"/>
+                                    <field name="total_amount_paid"/>
+                                    <field name="total_amount_pending"/>
+                                    <field name="interest_rate"/>
+                                    <field name="interest_amount"/>
+                                    <field name="total_payment" class="oe_subtotal_footer_separator"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Chi tiết thanh toán" name="payment_details" invisible="state != 'paid'">
+                            <group>
+                                <field name="payment_date"/>
+                                <field name="payment_method"/>
+                                <field name="payment_reference"/>
+                            </group>
+                        </page>
+                        <page string="Thông tin bổ sung" name="additional_info">
+                            <group>
+                                <field name="reason" placeholder="Lý do phát sinh khoản truy thu BHXH..."/>
+                            </group>
+                            <group>
+                                <field name="notes" placeholder="Ghi chú bổ sung..."/>
+                            </group>
+                        </page>
+                        <page string="Tài liệu đính kèm" name="attachments">
+                            <field name="attachment_ids" widget="many2many_binary"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids" widget="mail_followers"/>
+                    <field name="message_ids" widget="mail_thread"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- Search view for Social Insurance Late Fee -->
+    <record id="view_social_insurance_late_fee_search" model="ir.ui.view">
+        <field name="name">social.insurance.late.fee.search</field>
+        <field name="model">social.insurance.late.fee</field>
+        <field name="arch" type="xml">
+            <search string="Tìm kiếm phí chậm nộp BHXH">
+                <field name="name"/>
+                <field name="employee_id"/>
+                <field name="year"/>
+                <field name="month"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                
+                <!-- Filters -->
+                <filter string="Dự thảo" name="filter_draft" domain="[('state','=','draft')]"/>
+                <filter string="Đã xác nhận" name="filter_confirmed" domain="[('state','=','confirmed')]"/>
+                <filter string="Đã đóng" name="filter_paid" domain="[('state','=','paid')]"/>
+                <filter string="Đã hủy" name="filter_cancelled" domain="[('state','=','cancelled')]"/>
+                <separator/>
+                <filter string="Trách nhiệm công ty" name="filter_company_responsibility" domain="[('is_company_responsibility','=',True)]"/>
+                <filter string="Trách nhiệm nhân viên" name="filter_employee_responsibility" domain="[('is_company_responsibility','=',False)]"/>
+                
+                <!-- Groups -->
+                <group expand="0" string="Nhóm theo">
+                    <filter string="Nhân viên" name="group_employee" context="{'group_by': 'employee_id'}"/>
+                    <filter string="Năm" name="group_year" context="{'group_by': 'year'}"/>
+                    <filter string="Tháng" name="group_month" context="{'group_by': 'month'}"/>
+                    <filter string="Trạng thái" name="group_state" context="{'group_by': 'state'}"/>
+                    <filter string="Công ty" name="group_company" context="{'group_by': 'company_id'}" groups="base.group_multi_company"/>
+                </group>
+            </search>
+        </field>
+    </record>
+    
+    <!-- Action for Social Insurance Late Fee -->
+    <record id="action_social_insurance_late_fee" model="ir.actions.act_window">
+        <field name="name">Phí chậm nộp BHXH</field>
+        <field name="res_model">social.insurance.late.fee</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Tạo khoản phí chậm nộp BHXH mới
+            </p>
+            <p>
+                Quản lý các khoản phí chậm nộp BHXH theo quy định, 
+                bao gồm tính toán lãi suất chậm nộp tự động.
+            </p>
+        </field>
+    </record>
+    
+    <!-- Menu item for Social Insurance Late Fee -->
+    <menuitem id="menu_social_insurance_late_fee"
+              name="Phí chậm nộp BHXH" 
+              parent="menu_hr_insurance_root" 
+              action="action_social_insurance_late_fee" 
+              sequence="25"/>
+</odoo> 

@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Template báo cáo nghỉ phép -->
+    <template id="report_hr_leave">
+        <t t-call="web.html_container">
+            <t t-call="web.external_layout">
+                <div class="page">
+                    <div class="oe_structure"/>
+                    <div class="row">
+                        <div class="col-12 text-center">
+                            <h3>Báo cáo nghỉ phép nhân viên</h3>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt16 mb16">
+                        <div class="col-12">
+                            <table class="table table-sm table-bordered">
+                                <tr>
+                                    <td class="col-3"><strong>Từ ngày:</strong></td>
+                                    <td class="col-3"><t t-esc="get_header_info['start_date']"/></td>
+                                    <td class="col-3"><strong>Đến ngày:</strong></td>
+                                    <td class="col-3"><t t-esc="get_header_info['end_date']"/></td>
+                                </tr>
+                                <tr>
+                                    <td class="col-3"><strong>Ngày báo cáo:</strong></td>
+                                    <td class="col-3"><t t-esc="get_header_info['report_date']"/></td>
+                                    <td class="col-3"><strong>Đơn vị:</strong></td>
+                                    <td class="col-3"><t t-esc="company.name"/></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            <t t-if="employee_leave_details">
+                                <table class="table table-sm table-bordered">
+                                    <thead>
+                                        <tr class="text-center">
+                                            <th>STT</th>
+                                            <th>Mã NV</th>
+                                            <th>Họ và tên</th>
+                                            <th>Phòng ban</th>
+                                            <th>Vị trí</th>
+                                            <th><t t-foreach="leave_types" t-as="leave_type">
+                                                <div><span t-esc="leave_type.name"/></div>
+                                            </t></th>
+                                            <th>Tổng ngày</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <t t-set="counter" t-value="1"/>
+                                        <t t-foreach="employee_leave_details" t-as="detail">
+                                            <tr>
+                                                <td class="text-center"><t t-esc="counter"/></td>
+                                                <td class="text-center"><t t-esc="detail['employee'].barcode or ''"/></td>
+                                                <td><t t-esc="detail['employee'].name"/></td>
+                                                <td><t t-esc="detail['employee'].department_id.name or ''"/></td>
+                                                <td><t t-esc="detail['employee'].job_id.name or ''"/></td>
+                                                <td class="text-center">
+                                                    <t t-foreach="leave_types" t-as="leave_type">
+                                                        <div>
+                                                            <t t-if="detail['leaves'].get(leave_type.id)">
+                                                                <span t-esc="'%.1f' % detail['leaves'][leave_type.id]['number_of_days']"/>
+                                                                <t t-if="detail['leaves'][leave_type.id]['is_insurance']">
+                                                                    <span> (BHXH)</span>
+                                                                </t>
+                                                            </t>
+                                                            <t t-else="">
+                                                                <span>0.0</span>
+                                                            </t>
+                                                        </div>
+                                                    </t>
+                                                </td>
+                                                <td class="text-center"><t t-esc="'%.1f' % detail['total']"/></td>
+                                            </tr>
+                                            <t t-set="counter" t-value="counter + 1"/>
+                                        </t>
+                                    </tbody>
+                                </table>
+                            </t>
+                            <t t-else="">
+                                <p class="text-center">Không có dữ liệu trong khoảng thời gian này.</p>
+                            </t>
+                        </div>
+                    </div>
+                    
+                    <div class="oe_structure"/>
+                </div>
+            </t>
+        </t>
+    </template>
+    
+    <!-- Template báo cáo BHXH -->
+    <template id="report_hr_leave_insurance">
+        <t t-call="web.html_container">
+            <t t-call="web.external_layout">
+                <div class="page">
+                    <div class="oe_structure"/>
+                    <div class="row">
+                        <div class="col-12 text-center">
+                            <h3>Báo cáo chế độ BHXH</h3>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt16 mb16">
+                        <div class="col-12">
+                            <table class="table table-sm table-bordered">
+                                <tr>
+                                    <td class="col-3"><strong>Từ ngày:</strong></td>
+                                    <td class="col-3"><t t-esc="get_header_info['start_date']"/></td>
+                                    <td class="col-3"><strong>Đến ngày:</strong></td>
+                                    <td class="col-3"><t t-esc="get_header_info['end_date']"/></td>
+                                </tr>
+                                <tr>
+                                    <td class="col-3"><strong>Ngày báo cáo:</strong></td>
+                                    <td class="col-3"><t t-esc="get_header_info['report_date']"/></td>
+                                    <td class="col-3"><strong>Đơn vị:</strong></td>
+                                    <td class="col-3"><t t-esc="get_header_info['company_name']"/></td>
+                                </tr>
+                                <tr>
+                                    <td class="col-3"><strong>Loại BHXH:</strong></td>
+                                    <td class="col-9" colspan="3"><t t-esc="insurance_type"/></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            <t t-if="insurance_statistics">
+                                <table class="table table-sm table-bordered">
+                                    <thead>
+                                        <tr class="text-center">
+                                            <th>STT</th>
+                                            <th>Mã NV</th>
+                                            <th>Mã BHXH</th>
+                                            <th>Họ và tên</th>
+                                            <th>Phòng ban</th>
+                                            <th>Vị trí</th>
+                                            <th>Số ngày nghỉ ốm</th>
+                                            <th>Trợ cấp ốm đau (VND)</th>
+                                            <th>Số ngày nghỉ thai sản</th>
+                                            <th>Trợ cấp thai sản (VND)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <t t-set="counter" t-value="1"/>
+                                        <t t-foreach="insurance_statistics" t-as="item">
+                                            <tr>
+                                                <td class="text-center"><t t-esc="counter"/></td>
+                                                <td class="text-center"><t t-esc="item['employee'].barcode or ''"/></td>
+                                                <td class="text-center"><t t-esc="item['insurance_number']"/></td>
+                                                <td><t t-esc="item['employee'].name"/></td>
+                                                <td><t t-esc="item['department']"/></td>
+                                                <td><t t-esc="item['job']"/></td>
+                                                <td class="text-right"><t t-esc="'%.1f' % item['sick_days']"/></td>
+                                                <td class="text-right"><t t-esc="'{:,.0f}'.format(item['sick_allowance'])"/></td>
+                                                <td class="text-right"><t t-esc="'%.1f' % item['maternity_days']"/></td>
+                                                <td class="text-right"><t t-esc="'{:,.0f}'.format(item['maternity_allowance'])"/></td>
+                                            </tr>
+                                            <t t-set="counter" t-value="counter + 1"/>
+                                        </t>
+                                        <tr class="font-weight-bold">
+                                            <td class="text-right" colspan="6">Tổng cộng:</td>
+                                            <td class="text-right"><t t-esc="'%.1f' % total_sick_days"/></td>
+                                            <td class="text-right"><t t-esc="'{:,.0f}'.format(total_sick_allowance)"/></td>
+                                            <td class="text-right"><t t-esc="'%.1f' % total_maternity_days"/></td>
+                                            <td class="text-right"><t t-esc="'{:,.0f}'.format(total_maternity_allowance)"/></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </t>
+                            <t t-else="">
+                                <p class="text-center">Không có dữ liệu BHXH trong khoảng thời gian này.</p>
+                            </t>
+                        </div>
+                    </div>
+                    
+                    <div class="oe_structure"/>
+                </div>
+            </t>
+        </t>
+    </template>
+</odoo> 

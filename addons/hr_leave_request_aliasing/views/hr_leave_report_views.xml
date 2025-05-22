@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Wizard cho báo cáo nghỉ phép -->
+    <record id="view_hr_leave_report_wizard_form" model="ir.ui.view">
+        <field name="name">hr.leave.report.wizard.form</field>
+        <field name="model">hr.leave.report.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Tạo báo cáo nghỉ phép">
+                <group>
+                    <group>
+                        <field name="date_from"/>
+                        <field name="date_to"/>
+                    </group>
+                    <group>
+                        <field name="department_id"/>
+                        <field name="employee_id"/>
+                    </group>
+                </group>
+                <group>
+                    <field name="report_type" widget="radio"/>
+                </group>
+                <footer>
+                    <button name="action_print_report" string="Xuất báo cáo" type="object" class="btn-primary"/>
+                    <button string="Hủy" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+    
+    <!-- Action cho wizard báo cáo nghỉ phép -->
+    <record id="action_hr_leave_report_wizard" model="ir.actions.act_window">
+        <field name="name">Báo cáo nghỉ phép</field>
+        <field name="res_model">hr.leave.report.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_hr_leave_report_wizard_form"/>
+        <field name="target">new</field>
+    </record>
+    
+    <!-- Wizard cho báo cáo BHXH -->
+    <record id="view_hr_leave_insurance_report_wizard_form" model="ir.ui.view">
+        <field name="name">hr.leave.insurance.report.wizard.form</field>
+        <field name="model">hr.leave.insurance.report.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Tạo báo cáo BHXH">
+                <group>
+                    <group>
+                        <field name="date_from"/>
+                        <field name="date_to"/>
+                    </group>
+                    <group>
+                        <field name="department_id"/>
+                        <field name="employee_id"/>
+                        <field name="insurance_type"/>
+                    </group>
+                </group>
+                <group>
+                    <field name="report_type" widget="radio"/>
+                </group>
+                <footer>
+                    <button name="action_print_report" string="Xuất báo cáo" type="object" class="btn-primary"/>
+                    <button string="Hủy" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+    
+    <!-- Action cho wizard báo cáo BHXH -->
+    <record id="action_hr_leave_insurance_report_wizard" model="ir.actions.act_window">
+        <field name="name">Báo cáo BHXH</field>
+        <field name="res_model">hr.leave.insurance.report.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_hr_leave_insurance_report_wizard_form"/>
+        <field name="target">new</field>
+    </record>
+    
+    <!-- Đăng ký báo cáo PDF -->
+    <record id="action_report_hr_leave" model="ir.actions.report">
+        <field name="name">Báo cáo nghỉ phép</field>
+        <field name="model">hr.leave.report.wizard</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">hr_leave_request_aliasing.report_hr_leave</field>
+        <field name="report_file">hr_leave_request_aliasing.report_hr_leave</field>
+        <field name="print_report_name">'Báo cáo nghỉ phép'</field>
+    </record>
+    
+    <record id="action_report_hr_leave_insurance" model="ir.actions.report">
+        <field name="name">Báo cáo BHXH</field>
+        <field name="model">hr.leave.insurance.report.wizard</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">hr_leave_request_aliasing.report_hr_leave_insurance</field>
+        <field name="report_file">hr_leave_request_aliasing.report_hr_leave_insurance</field>
+        <field name="print_report_name">'Báo cáo BHXH'</field>
+    </record>
+    
+    <!-- Đăng ký báo cáo Excel -->
+    <record id="action_report_hr_leave_xlsx" model="ir.actions.report">
+        <field name="name">Báo cáo nghỉ phép Excel</field>
+        <field name="model">hr.leave.report.wizard</field>
+        <field name="report_type">xlsx</field>
+        <field name="report_name">hr_leave_request_aliasing.report_hr_leave_xlsx</field>
+        <field name="report_file">hr_leave_request_aliasing.report_hr_leave_xlsx</field>
+        <field name="print_report_name">'Báo cáo nghỉ phép.xlsx'</field>
+    </record>
+    
+    <record id="action_report_hr_leave_insurance_xlsx" model="ir.actions.report">
+        <field name="name">Báo cáo BHXH Excel</field>
+        <field name="model">hr.leave.insurance.report.wizard</field>
+        <field name="report_type">xlsx</field>
+        <field name="report_name">hr_leave_request_aliasing.report_hr_leave_insurance_xlsx</field>
+        <field name="report_file">hr_leave_request_aliasing.report_hr_leave_insurance_xlsx</field>
+        <field name="print_report_name">'Báo cáo BHXH.xlsx'</field>
+    </record>
+    
+    <!-- Menu cho báo cáo -->
+    <menuitem id="menu_hr_leave_report"
+              name="Báo cáo nghỉ phép"
+              parent="hr_holidays.menu_hr_holidays_report"
+              action="action_hr_leave_report_wizard"
+              sequence="10"/>
+              
+    <menuitem id="menu_hr_leave_insurance_report"
+              name="Báo cáo BHXH"
+              parent="hr_holidays.menu_hr_holidays_report"
+              action="action_hr_leave_insurance_report_wizard"
+              sequence="11"/>
+</odoo> 

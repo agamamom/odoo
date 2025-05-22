@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Form View for HR Employee (Inherited) -->
+    <record id="hr_employee_view_form_inherit_insurance" model="ir.ui.view">
+        <field name="name">hr.employee.view.form.inherit.insurance</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="hr.view_employee_form"/>
+        <field name="arch" type="xml">
+            <!-- Add BHXH tab -->
+            <xpath expr="//notebook" position="inside">
+                <page string="Thông tin BHXH" name="insurance" groups="hr.group_hr_user">
+                    <group>
+                        <group>
+                            <field name="has_insurance"/>
+                            <field name="insurance_number" readonly="1"/>
+                            <field name="insurance_issue_date" readonly="1"/>
+                            <field name="insurance_contribution_months" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="active_insurance_id" readonly="1" 
+                                   invisible="not has_insurance"/>
+                        </group>
+                    </group>
+                    <field name="employee_insurance_ids" 
+                           invisible="not has_insurance">
+                        <list editable="bottom">
+                            <field name="insurance_number"/>
+                            <field name="issue_date"/>
+                            <field name="expiry_date"/>
+                            <field name="is_active"/>
+                            <field name="basic_salary"/>
+                            <field name="insurance_rate"/>
+                            <field name="company_insurance_rate"/>
+                            <field name="contribution_months"/>
+                            <button name="action_view_insurance_detail" 
+                                    type="object" 
+                                    string="Xem chi tiết" 
+                                    class="oe_highlight" 
+                                    icon="fa-search"/>
+                        </list>
+                    </field>
+                    <group invisible="has_insurance">
+                        <div class="alert alert-info" role="alert">
+                            <p>Nhân viên này chưa có thông tin BHXH. Nhấn nút bên dưới để tạo mới.</p>
+                            <button name="action_create_insurance" 
+                                    type="object" 
+                                    string="Tạo thông tin BHXH" 
+                                    class="oe_highlight"/>
+                        </div>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo> 

@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Python imports needed for cron expressions -->
+    <function model="ir.model.data" name="_update_xmlids">
+        <value model="base" eval="[{
+            'xml_id': 'hr_leave_request_aliasing.python_imports',
+            'values': {
+                'name': 'python_imports',
+                'module': 'hr_leave_request_aliasing',
+                'model': 'ir.model',
+                'noupdate': True, 
+            }, 
+            'noupdate': True,
+        }]"/>
+    </function>
+    
+    <function model="ir.model" name="add_import">
+        <value model="ir.model" eval="'from dateutil.relativedelta import relativedelta'"/>
+    </function>
+    
+    <!-- Scheduled action for automatic leave reminders -->
+    <record id="ir_cron_leave_reminders" model="ir.cron">
+        <field name="name">Nghỉ phép: Kiểm tra và gửi thông báo tự động</field>
+        <field name="model_id" ref="model_hr_leave"/>
+        <field name="state">code</field>
+        <field name="code">model._send_leave_reminders()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="numbercall">-1</field>
+        <field name="doall" eval="False"/>
+        <field name="active" eval="True"/>
+    </record>
+    
+    <!-- Scheduled action for pending approval reminders -->
+    <record id="ir_cron_approval_reminders" model="ir.cron">
+        <field name="name">Nghỉ phép: Nhắc nhở quản lý phê duyệt đơn đang chờ</field>
+        <field name="model_id" ref="model_hr_leave"/>
+        <field name="state">code</field>
+        <field name="code">model._send_approval_reminders()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="numbercall">-1</field>
+        <field name="doall" eval="False"/>
+        <field name="active" eval="True"/>
+    </record>
+    
+    <!-- Scheduled action for medical certificate checking -->
+    <record id="ir_cron_medical_certificate_checking" model="ir.cron">
+        <field name="name">Nghỉ phép: Kiểm tra yêu cầu giấy khám bệnh</field>
+        <field name="model_id" ref="model_hr_leave"/>
+        <field name="state">code</field>
+        <field name="code">model.check_medical_certificate_requirement()</field>
+        <field name="interval_number">4</field>
+        <field name="interval_type">hours</field>
+        <field name="numbercall">-1</field>
+        <field name="doall" eval="False"/>
+        <field name="active" eval="True"/>
+    </record>
+    
+    <!-- Scheduled action for notifying leave balance at month end -->
+    <record id="ir_cron_month_end_balance_notification" model="ir.cron">
+        <field name="name">Nghỉ phép: Thông báo số ngày phép còn lại cuối tháng</field>
+        <field name="model_id" ref="model_hr_leave"/>
+        <field name="state">code</field>
+        <field name="code">model._send_month_end_balance_notification()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">months</field>
+        <field name="numbercall">-1</field>
+        <field name="doall" eval="False"/>
+        <field name="active" eval="True"/>
+        <field name="nextcall" eval="(datetime.now().replace(day=28) + relativedelta(months=1)).strftime('%Y-%m-%d 00:00:00')"/>
+    </record>
+</odoo> 

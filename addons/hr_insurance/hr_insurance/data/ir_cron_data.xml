@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Cron job kiểm tra bảo hiểm và thẻ BHYT hết hạn (hàng ngày) -->
+        <record id="ir_cron_insurance_expiry_check" model="ir.cron">
+            <field name="name">Kiểm tra bảo hiểm và thẻ BHYT hết hạn</field>
+            <field name="model_id" ref="model_hr_insurance"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_check_insurance_expiry()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+            <field name="user_id" ref="base.user_admin"/>
+        </record>
+        
+        <!-- Cron job nhắc nhở nộp báo cáo D02-TS (hàng tháng vào ngày 10) -->
+        <record id="ir_cron_insurance_report_reminder_d02_ts" model="ir.cron">
+            <field name="name">Nhắc nhở báo cáo D02-TS</field>
+            <field name="model_id" ref="model_hr_insurance"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_remind_d02_ts_report()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">months</field>
+            <field name="active" eval="True"/>
+            <field name="user_id" ref="base.user_admin"/>
+        </record>
+        
+        <!-- Cron job nhắc nhở nộp báo cáo D03-TS (hàng quý vào ngày 15) -->
+        <record id="ir_cron_insurance_report_reminder_d03_ts" model="ir.cron">
+            <field name="name">Nhắc nhở báo cáo D03-TS</field>
+            <field name="model_id" ref="model_hr_insurance"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_remind_d03_ts_report()</field>
+            <field name="interval_number">3</field>
+            <field name="interval_type">months</field>
+            <field name="active" eval="True"/>
+            <field name="user_id" ref="base.user_admin"/>
+        </record>
+    </data>
+</odoo> 

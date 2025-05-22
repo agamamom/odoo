@@ -1,0 +1,278 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- List view for Insurance Cost Report -->
+    <record id="view_insurance_cost_report_list" model="ir.ui.view">
+        <field name="name">insurance.cost.report.list</field>
+        <field name="model">insurance.cost.report</field>
+        <field name="arch" type="xml">
+            <list string="Báo cáo chi phí bảo hiểm">
+                <field name="name"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="report_type"/>
+                <field name="total_employees"/>
+                <field name="insured_employees"/>
+                <field name="participation_rate" widget="percentage"/>
+                <field name="total_bhxh" sum="Total"/>
+                <field name="total_bhyt" sum="Total"/>
+                <field name="total_bhtn" sum="Total"/>
+                <field name="grand_total" sum="Total"/>
+                <field name="state" decoration-info="state == 'draft'"
+                       decoration-warning="state == 'generated'"
+                       decoration-success="state == 'done'"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="user_id" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form view for Insurance Cost Report -->
+    <record id="view_insurance_cost_report_form" model="ir.ui.view">
+        <field name="name">insurance.cost.report.form</field>
+        <field name="model">insurance.cost.report</field>
+        <field name="arch" type="xml">
+            <form string="Báo cáo chi phí bảo hiểm">
+                <header>
+                    <button name="action_generate_report" string="Tạo báo cáo" type="object"
+                            class="oe_highlight" invisible="state != 'draft'"/>
+                    <button name="action_export_data" string="Xuất dữ liệu" type="object"
+                            class="oe_highlight" invisible="state != 'generated'"/>
+                    <button name="action_view_graph" string="Xem biểu đồ" type="object"
+                            invisible="state == 'draft'"/>
+                    <button name="action_reset_to_draft" string="Tạo lại báo cáo" type="object"
+                            invisible="state == 'draft'"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,generated,done"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box" invisible="state == 'draft'">
+                        <button name="action_view_graph" type="object" class="oe_stat_button" icon="fa-bar-chart">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_text">Biểu đồ phân tích</span>
+                            </div>
+                        </button>
+                        <button name="action_export_accounting" type="object" class="oe_stat_button" icon="fa-file-text-o">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_text">Xuất cho kế toán</span>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Tên báo cáo"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                            <field name="report_type"/>
+                            <field name="department_ids" widget="many2many_tags" 
+                                   invisible="report_type != 'department'"/>
+                            <field name="include_unpaid"/>
+                        </group>
+                        <group>
+                            <field name="user_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <notebook invisible="state == 'draft'">
+                        <page string="Thống kê" name="statistics">
+                            <group>
+                                <group string="Nhân sự">
+                                    <field name="total_employees"/>
+                                    <field name="insured_employees"/>
+                                    <field name="participation_rate" widget="percentage"/>
+                                    <field name="late_payment_employees"/>
+                                    <field name="late_payment_rate" widget="percentage"/>
+                                    <field name="violation_employees"/>
+                                    <field name="violation_rate" widget="percentage"/>
+                                    <field name="new_registrations"/>
+                                    <field name="terminated_insurances"/>
+                                </group>
+                                <group string="Chi phí bảo hiểm">
+                                    <field name="total_bhxh"/>
+                                    <field name="total_bhyt"/>
+                                    <field name="total_bhtn"/>
+                                    <field name="total_employee"/>
+                                    <field name="total_company"/>
+                                    <field name="total_late_fee"/>
+                                    <field name="total_benefit_received" />
+                                    <field name="grand_total" class="oe_subtotal_footer_separator"/>
+                                </group>
+                            </group>
+                            <group string="Phân tích theo thời gian">
+                                <field name="monthly_trend" widget="percentagebar"/>
+                                <field name="quarterly_comparison" widget="percentagebar"/>
+                                <field name="yearly_growth" widget="percentagebar"/>
+                            </group>
+                            <group string="Dữ liệu xuất" invisible="state != 'done'">
+                                <field name="export_filename" invisible="1"/>
+                                <field name="export_data" filename="export_filename" widget="binary"/>
+                            </group>
+                        </page>
+                        <page string="Chi tiết theo nhân viên" name="details">
+                            <field name="line_ids">
+                                <list editable="bottom">
+                                    <field name="employee_id"/>
+                                    <field name="department_id"/>
+                                    <field name="job_id"/>
+                                    <field name="bhxh_amount" sum="Total"/>
+                                    <field name="bhyt_amount" sum="Total"/>
+                                    <field name="bhtn_amount" sum="Total"/>
+                                    <field name="employee_amount" sum="Total"/>
+                                    <field name="company_amount" sum="Total"/>
+                                    <field name="late_fee_amount" sum="Total"/>
+                                    <field name="total_amount" sum="Total"/>
+                                    <field name="has_late_payment"/>
+                                    <field name="has_violation"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Phân tích tiến độ đóng BHXH" name="payment_timeline">
+                            <field name="payment_timeline_ids">
+                                <list>
+                                    <field name="period_name"/>
+                                    <field name="due_date"/>
+                                    <field name="payment_date"/>
+                                    <field name="days_late"/>
+                                    <field name="amount_due" sum="Total"/>
+                                    <field name="amount_paid" sum="Total"/>
+                                    <field name="payment_status"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids" widget="mail_followers"/>
+                    <field name="message_ids" widget="mail_thread"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- Search view for Insurance Cost Report -->
+    <record id="view_insurance_cost_report_search" model="ir.ui.view">
+        <field name="name">insurance.cost.report.search</field>
+        <field name="model">insurance.cost.report</field>
+        <field name="arch" type="xml">
+            <search string="Tìm kiếm báo cáo chi phí bảo hiểm">
+                <field name="name"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                
+                <!-- Filters -->
+                <filter string="Dự thảo" name="filter_draft" domain="[('state','=','draft')]"/>
+                <filter string="Đã tạo" name="filter_generated" domain="[('state','=','generated')]"/>
+                <filter string="Hoàn thành" name="filter_done" domain="[('state','=','done')]"/>
+                <separator/>
+                <filter string="Theo phòng ban" name="filter_department" domain="[('report_type','=','department')]"/>
+                <filter string="Toàn công ty" name="filter_company" domain="[('report_type','=','company')]"/>
+                <separator/>
+                <filter string="Tháng này" name="this_month" 
+                        domain="[('date_from','&gt;=', (context_today() + relativedelta(day=1)).strftime('%Y-%m-%d')),
+                                ('date_to','&lt;=', (context_today() + relativedelta(months=1, day=1, days=-1)).strftime('%Y-%m-%d'))]"/>
+                <filter string="Quý này" name="this_quarter" 
+                        domain="[('date_from','&gt;=', (context_today() + relativedelta(month=3*(((context_today().month-1)//3)+1), day=1)).strftime('%Y-%m-%d')),
+                                ('date_to','&lt;', (context_today() + relativedelta(month=3*((context_today().month//3)+1), day=1)).strftime('%Y-%m-%d'))]"/>
+                <filter string="Năm nay" name="this_year" 
+                        domain="[('date_from','&gt;=', (context_today() + relativedelta(month=1, day=1)).strftime('%Y-%m-%d')),
+                                ('date_to','&lt;=', (context_today() + relativedelta(month=12, day=31)).strftime('%Y-%m-%d'))]"/>
+                
+                <!-- Groups -->
+                <group expand="0" string="Nhóm theo">
+                    <filter string="Loại báo cáo" name="group_type" context="{'group_by': 'report_type'}"/>
+                    <filter string="Trạng thái" name="group_state" context="{'group_by': 'state'}"/>
+                    <filter string="Tháng" name="group_month" context="{'group_by': 'date_from:month'}"/>
+                    <filter string="Quý" name="group_quarter" context="{'group_by': 'date_from:quarter'}"/>
+                    <filter string="Năm" name="group_year" context="{'group_by': 'date_from:year'}"/>
+                    <filter string="Công ty" name="group_company" context="{'group_by': 'company_id'}" groups="base.group_multi_company"/>
+                    <filter string="Người tạo" name="group_user" context="{'group_by': 'user_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+    
+    <!-- Graph view for Insurance Cost Report -->
+    <record id="view_insurance_cost_report_graph" model="ir.ui.view">
+        <field name="name">insurance.cost.report.graph</field>
+        <field name="model">insurance.cost.report</field>
+        <field name="arch" type="xml">
+            <graph string="Thống kê chi phí bảo hiểm" type="bar" stacked="1">
+                <field name="date_from" type="row" interval="month"/>
+                <field name="total_bhxh" type="measure"/>
+                <field name="total_bhyt" type="measure"/>
+                <field name="total_bhtn" type="measure"/>
+                <field name="total_late_fee" type="measure"/>
+            </graph>
+        </field>
+    </record>
+    
+    <!-- Kanban view for Insurance Cost Report -->
+    <record id="view_insurance_cost_report_kanban" model="ir.ui.view">
+        <field name="name">insurance.cost.report.kanban</field>
+        <field name="model">insurance.cost.report</field>
+        <field name="arch" type="xml">
+            <kanban class="o_kanban_mobile" create="1">
+                <field name="name"/>
+                <field name="report_type"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="state"/>
+                <field name="total_bhxh"/>
+                <field name="total_bhyt"/>
+                <field name="total_bhtn"/>
+                <field name="grand_total"/>
+                <templates>
+                    <t t-name="card">
+                        <div t-attf-class="oe_kanban_global_click">
+                            <div class="oe_kanban_details">
+                                <strong class="o_kanban_record_title"><field name="name"/></strong>
+                                <div class="o_kanban_tags_section">
+                                    <span class="badge rounded-pill"
+                                          t-attf-class="bg-#{
+                                          state == 'draft' and 'info' or
+                                          state == 'generated' and 'warning' or
+                                          state == 'done' and 'success' or 'secondary'}">
+                                        <field name="state"/>
+                                    </span>
+                                </div>
+                                <ul>
+                                    <li>Từ: <field name="date_from"/></li>
+                                    <li>Đến: <field name="date_to"/></li>
+                                    <li>Loại: <field name="report_type"/></li>
+                                </ul>
+                                <div class="text-end">
+                                    <strong>Tổng chi phí: <field name="grand_total" widget="monetary"/></strong>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+    
+    <!-- Actions and Menus -->
+    <record id="action_insurance_cost_report" model="ir.actions.act_window">
+        <field name="name">Báo cáo chi phí bảo hiểm</field>
+        <field name="res_model">insurance.cost.report</field>
+        <field name="view_mode">list,form,kanban,graph</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Tạo báo cáo chi phí bảo hiểm mới
+            </p>
+            <p>
+                Theo dõi và phân tích chi phí bảo hiểm xã hội, y tế và thất nghiệp.
+                Tạo báo cáo chi tiết theo nhân viên hoặc phòng ban.
+            </p>
+        </field>
+    </record>
+    
+    <menuitem id="menu_insurance_cost_report" 
+              name="Báo cáo chi phí bảo hiểm"
+              parent="menu_hr_insurance_reporting"
+              action="action_insurance_cost_report"
+              sequence="10"/>
+</odoo> 

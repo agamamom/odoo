@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Form View for HR Employee Insurance -->
+    <record id="hr_employee_insurance_view_form" model="ir.ui.view">
+        <field name="name">hr.employee.insurance.form</field>
+        <field name="model">hr.employee.insurance</field>
+        <field name="arch" type="xml">
+            <form string="Thông tin BHXH">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="employee_id"/>
+                            <field name="insurance_number"/>
+                            <field name="issue_date"/>
+                            <field name="expiry_date"/>
+                            <field name="is_active"/>
+                        </group>
+                        <group>
+                            <field name="basic_salary"/>
+                            <field name="insurance_rate"/>
+                            <field name="company_insurance_rate"/>
+                            <field name="contribution_months"/>
+                            <field name="sick_leave_coefficient"/>
+                            <field name="maternity_leave_coefficient"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Ghi chú">
+                            <field name="note"/>
+                        </page>
+                        <page string="Tài liệu đính kèm">
+                            <field name="attachment_ids" widget="many2many_binary" options="{'accepted_file_extensions': 'image/*,application/pdf'}"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- List View for HR Employee Insurance -->
+    <record id="hr_employee_insurance_view_list" model="ir.ui.view">
+        <field name="name">hr.employee.insurance.list</field>
+        <field name="model">hr.employee.insurance</field>
+        <field name="arch" type="xml">
+            <list string="Thông tin BHXH">
+                <field name="employee_id"/>
+                <field name="insurance_number"/>
+                <field name="issue_date"/>
+                <field name="expiry_date"/>
+                <field name="is_active"/>
+                <field name="basic_salary"/>
+                <field name="contribution_months"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Search View for HR Employee Insurance -->
+    <record id="hr_employee_insurance_view_search" model="ir.ui.view">
+        <field name="name">hr.employee.insurance.search</field>
+        <field name="model">hr.employee.insurance</field>
+        <field name="arch" type="xml">
+            <search string="Tìm kiếm BHXH">
+                <field name="employee_id"/>
+                <field name="insurance_number"/>
+                <filter string="Đang hoạt động" name="active" domain="[('is_active', '=', True)]"/>
+                <filter string="Hết hạn" name="expired" domain="[('is_active', '=', False)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Nhân viên" name="employee" context="{'group_by': 'employee_id'}"/>
+                    <filter string="Năm tham gia" name="year" context="{'group_by': 'issue_date:year'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action for HR Employee Insurance -->
+    <record id="action_hr_employee_insurance" model="ir.actions.act_window">
+        <field name="name">Thông tin BHXH</field>
+        <field name="res_model">hr.employee.insurance</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="hr_employee_insurance_view_search"/>
+        <field name="context">{'search_default_active': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Tạo thông tin BHXH đầu tiên cho nhân viên!
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu for HR Employee Insurance -->
+    <menuitem id="menu_hr_employee_insurance"
+              name="Thông tin BHXH"
+              parent="hr.menu_hr_employee_payroll"
+              action="action_hr_employee_insurance"
+              sequence="100"
+              groups="hr.group_hr_user"/>
+</odoo> 

@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- List view tùy chỉnh cho báo cáo bảo hiểm -->
+    <record id="view_hr_insurance_report_list" model="ir.ui.view">
+        <field name="name">hr.insurance.report.list</field>
+        <field name="model">hr.insurance</field>
+        <field name="arch" type="xml">
+            <list string="Báo cáo bảo hiểm">
+                <field name="name"/>
+                <field name="employee_id"/>
+                <field name="employee_id" string="Phòng ban" invisible="1"/>
+                <field name="insurance_type"/>
+                <field name="policy_id"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="salary_base" sum="Tổng lương đóng BH"/>
+                <field name="employee_contribution" sum="Tổng NV đóng"/>
+                <field name="company_contribution" sum="Tổng CT đóng"/>
+                <field name="total_contribution" sum="Tổng cộng"/>
+                <field name="state"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
+        </field>
+    </record>
+    
+    <!-- Search view tùy chỉnh cho báo cáo bảo hiểm -->
+    <record id="view_hr_insurance_report_search" model="ir.ui.view">
+        <field name="name">hr.insurance.report.search</field>
+        <field name="model">hr.insurance</field>
+        <field name="arch" type="xml">
+            <search string="Tìm kiếm bảo hiểm">
+                <field name="name"/>
+                <field name="employee_id"/>
+                <field name="insurance_type"/>
+                <!-- Bộ lọc -->
+                <filter string="BHXH" name="filter_bhxh" domain="[('insurance_type','=','bhxh')]"/>
+                <filter string="BHYT" name="filter_bhyt" domain="[('insurance_type','=','bhyt')]"/>
+                <filter string="BHTN" name="filter_bhtn" domain="[('insurance_type','=','bhtn')]"/>
+                <separator/>
+                <filter string="Đang hoạt động" name="filter_active" domain="[('state','=','active')]"/>
+                <filter string="Hết hạn" name="filter_expired" domain="[('state','=','expired')]"/>
+                <!-- Nhóm -->
+                <group expand="0" string="Nhóm theo">
+                    <filter string="Nhân viên" name="group_employee" context="{'group_by': 'employee_id'}"/>
+                    <filter string="Loại bảo hiểm" name="group_type" context="{'group_by': 'insurance_type'}"/>
+                    <filter string="Trạng thái" name="group_state" context="{'group_by': 'state'}"/>
+                    <filter string="Công ty" name="group_company" context="{'group_by': 'company_id'}" groups="base.group_multi_company"/>
+                </group>
+            </search>
+        </field>
+    </record>
+    
+    <!-- Action cho báo cáo bảo hiểm -->
+    <record id="action_insurance_report_list" model="ir.actions.act_window">
+        <field name="name">Báo cáo bảo hiểm</field>
+        <field name="res_model">hr.insurance</field>
+        <field name="view_mode">list,pivot,graph</field>
+        <field name="view_id" ref="view_hr_insurance_report_list"/>
+        <field name="search_view_id" ref="view_hr_insurance_report_search"/>
+        <field name="context">{'search_default_filter_active': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Không có dữ liệu bảo hiểm để hiển thị.
+            </p>
+        </field>
+    </record>
+    
+    <!-- Menu cho báo cáo bảo hiểm -->
+    <menuitem id="menu_insurance_report"
+              name="Báo cáo bảo hiểm"
+              parent="menu_hr_insurance_root"
+              action="action_insurance_report_list"
+              sequence="80"/>
+    
+    <!-- Form view cho D02-TS Wizard -->
+    <record id="view_d02_ts_report_wizard_form" model="ir.ui.view">
+        <field name="name">hr_insurance.d02_ts_report_wizard.form</field>
+        <field name="model">hr_insurance.d02_ts_report_wizard</field>
+        <field name="arch" type="xml">
+            <form string="Báo cáo D02-TS">
+                <sheet>
+                    <field name="state" invisible="1"/>
+                    <group invisible="state != 'choose'">
+                        <group>
+                            <field name="company_id" readonly="1"/>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                        </group>
+                        <group>
+                            <field name="insurance_type"/>
+                            <field name="include_expired"/>
+                            <field name="department_ids" widget="many2many_tags"/>
+                        </group>
+                    </group>
+                    <div invisible="state != 'get'">
+                        <h4>Báo cáo đã sẵn sàng</h4>
+                        <p>Nhấn nút <b>Tải xuống</b> để tải file báo cáo.</p>
+                        <field name="file_name" invisible="1"/>
+                        <field name="file_data" readonly="1" filename="file_name"/>
+                    </div>
+                </sheet>
+                <footer>
+                    <button name="action_print_pdf" string="Xuất PDF" type="object" class="btn-primary" invisible="state != 'choose'"/>
+                    <button name="action_export_excel" string="Xuất Excel" type="object" class="btn-primary" invisible="state != 'choose'"/>
+                    <button string="Tải xuống" name="action_export_excel" type="object" class="btn-primary" invisible="state != 'get'"/>
+                    <button string="Quay lại" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+    
+    <!-- Form view cho D03-TS Wizard -->
+    <record id="view_d03_ts_report_wizard_form" model="ir.ui.view">
+        <field name="name">hr_insurance.d03_ts_report_wizard.form</field>
+        <field name="model">hr_insurance.d03_ts_report_wizard</field>
+        <field name="arch" type="xml">
+            <form string="Báo cáo D03-TS">
+                <sheet>
+                    <field name="state" invisible="1"/>
+                    <group invisible="state != 'choose'">
+                        <group>
+                            <field name="company_id" readonly="1"/>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                        </group>
+                        <group>
+                            <field name="change_type"/>
+                            <field name="department_ids" widget="many2many_tags"/>
+                        </group>
+                    </group>
+                    <div invisible="state != 'get'">
+                        <h4>Báo cáo đã sẵn sàng</h4>
+                        <p>Nhấn nút <b>Tải xuống</b> để tải file báo cáo.</p>
+                        <field name="file_name" invisible="1"/>
+                        <field name="file_data" readonly="1" filename="file_name"/>
+                    </div>
+                </sheet>
+                <footer>
+                    <button name="action_print_pdf" string="Xuất PDF" type="object" class="btn-primary" invisible="state != 'choose'"/>
+                    <button name="action_export_excel" string="Xuất Excel" type="object" class="btn-primary" invisible="state != 'choose'"/>
+                    <button string="Tải xuống" name="action_export_excel" type="object" class="btn-primary" invisible="state != 'get'"/>
+                    <button string="Quay lại" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+    
+    <!-- Actions -->
+    <record id="action_d02_ts_report_wizard" model="ir.actions.act_window">
+        <field name="name">Báo cáo D02-TS</field>
+        <field name="res_model">hr_insurance.d02_ts_report_wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+    
+    <record id="action_d03_ts_report_wizard" model="ir.actions.act_window">
+        <field name="name">Báo cáo D03-TS</field>
+        <field name="res_model">hr_insurance.d03_ts_report_wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+    
+    <!-- Menu items -->
+    <menuitem id="menu_hr_insurance_reports_d02_ts" 
+              name="Báo cáo D02-TS" 
+              parent="menu_insurance_report" 
+              action="action_d02_ts_report_wizard" 
+              sequence="20"/>
+              
+    <menuitem id="menu_hr_insurance_reports_d03_ts" 
+              name="Báo cáo D03-TS" 
+              parent="menu_insurance_report" 
+              action="action_d03_ts_report_wizard" 
+              sequence="30"/>
+</odoo> 

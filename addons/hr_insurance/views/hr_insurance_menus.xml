@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Main Insurance Menu -->
+    <menuitem id="menu_hr_insurance_root"
+              name="Bảo hiểm"
+              parent="hr.menu_hr_root"
+              sequence="45"/>
+              
+    <!-- Insurance Reports Menu -->
+    <menuitem id="menu_hr_insurance_reporting"
+              name="Báo cáo và thống kê"
+              parent="menu_hr_insurance_root"
+              sequence="90"/>
+    
+    <!-- Cấu hình -->
+    <menuitem id="menu_hr_insurance_config"
+              name="Cấu hình"
+              parent="menu_hr_insurance_root"
+              sequence="100"/>
+</odoo> 

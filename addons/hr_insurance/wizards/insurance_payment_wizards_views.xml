@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Form view cho Insurance Payment Wizard -->
+    <record id="view_insurance_payment_wizard_form" model="ir.ui.view">
+        <field name="name">insurance.payment.wizard.form</field>
+        <field name="model">insurance.payment.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Thanh toán bảo hiểm">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="payment_date"/>
+                            <field name="payment_method"/>
+                            <field name="reference"/>
+                        </group>
+                        <group>
+                            <field name="company_id" readonly="1"/>
+                            <field name="payment_type"/>
+                            <field name="month"/>
+                            <field name="year"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Nhân viên" name="employees">
+                            <field name="line_ids">
+                                <list editable="bottom">
+                                    <field name="employee_id"/>
+                                    <field name="insurance_id" domain="[('employee_id', '=', employee_id), ('state', '=', 'active')]"/>
+                                    <field name="amount"/>
+                                    <field name="state" invisible="1"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Ghi chú" name="notes">
+                            <field name="notes" placeholder="Ghi chú về thanh toán bảo hiểm..."/>
+                        </page>
+                    </notebook>
+                    <group class="oe_subtotal_footer oe_right">
+                        <field name="total_amount" widget="monetary"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_confirm_payment" string="Xác nhận thanh toán" type="object" class="btn-primary"/>
+                    <button string="Hủy" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_insurance_payment_wizard" model="ir.actions.act_window">
+        <field name="name">Thanh toán bảo hiểm</field>
+        <field name="res_model">insurance.payment.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo> 

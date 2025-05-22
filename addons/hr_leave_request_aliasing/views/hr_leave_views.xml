@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Thêm trường remaining_leaves và is_insurance_eligible vào form hr.leave -->
+    <record id="hr_leave_view_form_inherit" model="ir.ui.view">
+        <field name="name">hr.leave.view.form.inherit.leave.request.aliasing</field>
+        <field name="model">hr.leave</field>
+        <field name="inherit_id" ref="hr_holidays.hr_leave_view_form"/>
+        <field name="arch" type="xml">
+            <!-- Thêm trường remaining_leaves sau holiday_status_id -->
+            <xpath expr="//field[@name='holiday_status_id']" position="after">
+                <field name="remaining_leaves" 
+                       invisible="not holiday_status_id" 
+                       groups="hr_holidays.group_hr_holidays_user"/>
+                <div class="alert alert-danger mb8" role="alert" 
+                     invisible="remaining_leaves >= 0 or not holiday_status_id">
+                    <strong>Cảnh báo:</strong> Bạn đã vượt quá số ngày nghỉ phép cho phép!
+                </div>
+                <div class="alert alert-warning mb8" role="alert" 
+                     invisible="remaining_leaves > 3 or remaining_leaves &lt; 0 or not holiday_status_id">
+                    <strong>Lưu ý:</strong> Bạn chỉ còn ít ngày nghỉ phép!
+                </div>
+            </xpath>
+            
+            <!-- Thêm phần trợ cấp BHXH vào form sau phần Description -->
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="is_insurance_eligible" invisible="1"/>
+                <group string="Thông tin BHXH" 
+                       invisible="not is_insurance_eligible">
+                    <field name="insurance_type"/>
+                    <field name="insurance_daily_allowance"/>
+                    <field name="insurance_allowance"/>
+                    <field name="salary_deduction"/>
+                </group>
+                
+                <!-- Thêm phần giấy khám bệnh nếu cần -->
+                <field name="needs_medical_note" invisible="1"/>
+                <group string="Giấy khám bệnh" 
+                      invisible="not needs_medical_note">
+                    <field name="medical_note_provided"/>
+                    <div class="alert alert-warning" role="alert" 
+                         invisible="not needs_medical_note or medical_note_provided">
+                        <strong>Lưu ý:</strong> Vì thời gian nghỉ ốm vượt quá ngưỡng quy định, người lao động cần nộp giấy khám bệnh.
+                    </div>
+                </group>
+            </xpath>
+            
+            <!-- Thêm phần cập nhật chấm công dành cho quản lý -->
+            <xpath expr="//notebook" position="inside">
+                <page string="Chấm công" groups="hr_holidays.group_hr_holidays_user">
+                    <group>
+                        <group>
+                            <field name="update_attendance"/>
+                            <field name="attendance_status_updated" readonly="1"/>
+                        </group>
+                        <group>
+                            <div class="alert alert-info" role="alert" invisible="not update_attendance">
+                                <p>Khi đơn nghỉ phép được phê duyệt, hệ thống sẽ tự động tạo các bản ghi chấm công cho nhân viên trong thời gian nghỉ phép.</p>
+                            </div>
+                        </group>
+                    </group>
+                </page>
+                
+                <!-- Thêm trang theo dõi thông báo -->
+                <page string="Thông báo" groups="hr_holidays.group_hr_holidays_user">
+                    <group>
+                        <group string="Trạng thái thông báo">
+                            <field name="notification_sent"/>
+                            <field name="approval_reminder_sent"/>
+                        </group>
+                        <group>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Thêm trường remaining_leaves vào view list của hr.leave -->
+    <record id="hr_leave_view_list_inherit" model="ir.ui.view">
+        <field name="name">hr.leave.view.list.inherit.leave.request.aliasing</field>
+        <field name="model">hr.leave</field>
+        <field name="inherit_id" ref="hr_holidays.hr_leave_view_tree"/>
+        <field name="arch" type="xml">
+            <!-- Thêm trường remaining_leaves sau holiday_status_id -->
+            <xpath expr="//field[@name='holiday_status_id']" position="after">
+                <field name="remaining_leaves" optional="show" groups="hr_holidays.group_hr_holidays_user"/>
+                <field name="is_insurance_eligible" optional="show" groups="hr_holidays.group_hr_holidays_user"/>
+                <field name="insurance_type" optional="show" groups="hr_holidays.group_hr_holidays_user"/>
+                <field name="insurance_allowance" optional="show" groups="hr_holidays.group_hr_holidays_user"/>
+                <field name="update_attendance" optional="show" groups="hr_holidays.group_hr_holidays_user"/>
+                <field name="attendance_status_updated" optional="show" groups="hr_holidays.group_hr_holidays_user"/>
+                <field name="needs_medical_note" optional="show" groups="hr_holidays.group_hr_holidays_user"/>
+                <field name="medical_note_provided" optional="show" groups="hr_holidays.group_hr_holidays_user"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Thêm trường remaining_leaves vào view search của hr.leave -->
+    <record id="hr_leave_view_search_inherit" model="ir.ui.view">
+        <field name="name">hr.leave.view.search.inherit.leave.request.aliasing</field>
+        <field name="model">hr.leave</field>
+        <field name="inherit_id" ref="hr_holidays.hr_leave_view_search"/>
+        <field name="arch" type="xml">
+            <!-- Thêm filter để lọc ra các đơn vượt quá số ngày cho phép -->
+            <xpath expr="//filter[@name='group_type']" position="after">
+                <separator/>
+                <filter string="Vượt quá số ngày cho phép" 
+                        name="exceeding_days" 
+                        domain="[('remaining_leaves', '&lt;', 0)]"
+                        groups="hr_holidays.group_hr_holidays_user"/>
+                <filter string="Có trợ cấp BHXH" 
+                        name="has_insurance" 
+                        domain="[('is_insurance_eligible', '=', True)]"
+                        groups="hr_holidays.group_hr_holidays_user"/>
+                <filter string="Đã cập nhật chấm công"
+                        name="attendance_updated"
+                        domain="[('attendance_status_updated', '=', True)]"
+                        groups="hr_holidays.group_hr_holidays_user"/>
+                <filter string="Cần giấy khám bệnh"
+                        name="needs_medical_note"
+                        domain="[('needs_medical_note', '=', True), ('medical_note_provided', '=', False)]"
+                        groups="hr_holidays.group_hr_holidays_user"/>
+            </xpath>
+            
+            <!-- Thêm group by filter cho insurance_type -->
+            <xpath expr="//filter[@name='group_employee']" position="after">
+                <filter string="Loại trợ cấp BHXH" name="group_insurance_type" context="{'group_by': 'insurance_type'}" 
+                        groups="hr_holidays.group_hr_holidays_user"/>
+            </xpath>
+        </field>
+    </record>
+    
+    <!-- Thêm form view cho loại nghỉ phép mở rộng -->
+    <record id="hr_leave_type_view_form_inherit" model="ir.ui.view">
+        <field name="name">hr.leave.type.view.form.inherit</field>
+        <field name="model">hr.leave.type</field>
+        <field name="inherit_id" ref="hr_holidays.hr_leave_type_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='validity_types']" position="after">
+                <div class="row mt16">
+                    <label for="code" class="col-lg-3"/>
+                    <field name="code" class="oe_inline"/>
+                </div>
+                <div class="row mt16">
+                    <label for="is_sick_leave" class="col-lg-3"/>
+                    <field name="is_sick_leave"/>
+                </div>
+                <div class="row mt16">
+                    <label for="is_maternity_leave" class="col-lg-3"/>
+                    <field name="is_maternity_leave"/>
+                </div>
+            </xpath>
+            
+            <xpath expr="//notebook" position="inside">
+                <page string="Từ khóa tự động nhận diện" name="keywords">
+                    <group>
+                        <group string="Từ khóa tự động nhận diện">
+                            <field name="keywords_vi" placeholder="ốm, bệnh, đau, đau ốm"/>
+                            <field name="keywords_en" placeholder="sick, illness, medical, doctor"/>
+                        </group>
+                        <group>
+                            <div class="alert alert-info" role="alert">
+                                <p>Các từ khóa sẽ được sử dụng để tự động nhận diện loại nghỉ phép từ email nhận được. Nhập các từ khóa phân cách bằng dấu phẩy.</p>
+                            </div>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+    
+    <!-- Thêm trường vào list view của leave type -->
+    <record id="hr_leave_type_view_list_inherit" model="ir.ui.view">
+        <field name="name">hr.leave.type.view.list.inherit</field>
+        <field name="model">hr.leave.type</field>
+        <field name="inherit_id" ref="hr_holidays.hr_leave_type_view_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="code" optional="show"/>
+                <field name="is_sick_leave" optional="show"/>
+                <field name="is_maternity_leave" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+</odoo> 

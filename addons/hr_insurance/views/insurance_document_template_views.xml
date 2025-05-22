@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- List view for Insurance Document Templates -->
+    <record id="view_insurance_document_template_list" model="ir.ui.view">
+        <field name="name">insurance.document.template.list</field>
+        <field name="model">insurance.document.template</field>
+        <field name="arch" type="xml">
+            <list string="Mẫu tài liệu bảo hiểm">
+                <field name="code" width="100"/>
+                <field name="name" width="250"/>
+                <field name="document_type" width="180"/>
+                <field name="description" width="300" optional="show"/>
+                <field name="auto_set_deadline" width="100" optional="show"/>
+                <field name="days_deadline" width="100" optional="show"/>
+                <field name="default_officer_id" width="150" optional="show"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="active" invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form view for Insurance Document Templates -->
+    <record id="view_insurance_document_template_form" model="ir.ui.view">
+        <field name="name">insurance.document.template.form</field>
+        <field name="model">insurance.document.template</field>
+        <field name="arch" type="xml">
+            <form string="Mẫu tài liệu bảo hiểm">
+                <header>
+                    <button name="action_create_document" string="Tạo tài liệu" type="object" 
+                            class="oe_highlight"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="toggle_active" type="object" 
+                                class="oe_stat_button" icon="fa-archive">
+                            <field name="active" widget="boolean_button" 
+                                   options="{'terminology': 'archive'}"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Tên mẫu tài liệu..."/>
+                        </h1>
+                        <h3>
+                            <field name="code" readonly="1"/>
+                        </h3>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="document_type"/>
+                            <field name="adjustment_type" 
+                                   invisible="document_type != 'adjustment'"/>
+                            <field name="default_bhyt_hospital" 
+                                   invisible="document_type != 'bhyt_card'"/>
+                            <field name="default_bhxh_book_issue_place" 
+                                   invisible="document_type != 'bhxh_book'"/>
+                        </group>
+                        <group>
+                            <field name="auto_set_deadline"/>
+                            <field name="days_deadline" 
+                                   invisible="auto_set_deadline == False"/>
+                            <field name="auto_set_officer"/>
+                            <field name="default_officer_id" 
+                                   invisible="auto_set_officer == False"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Mô tả" name="description">
+                            <field name="description" placeholder="Mô tả về mẫu tài liệu này..."/>
+                        </page>
+                        <page string="Ghi chú mặc định" name="notes">
+                            <field name="default_notes" placeholder="Ghi chú mặc định sẽ được áp dụng khi tạo tài liệu từ mẫu này..."/>
+                        </page>
+                        <page string="Tài liệu mẫu" name="attachments">
+                            <p class="text-muted">
+                                Tài liệu mẫu sẽ được đính kèm tự động vào tài liệu mới được tạo từ mẫu này.
+                            </p>
+                            <field name="default_attachment_ids" widget="many2many_binary"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter" invisible="1">
+                    <field name="message_follower_ids" widget="mail_followers" invisible="1"/>
+                    <field name="message_ids" widget="mail_thread" invisible="1"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- Search view for Insurance Document Templates -->
+    <record id="view_insurance_document_template_search" model="ir.ui.view">
+        <field name="name">insurance.document.template.search</field>
+        <field name="model">insurance.document.template</field>
+        <field name="arch" type="xml">
+            <search string="Tìm kiếm mẫu tài liệu">
+                <field name="name"/>
+                <field name="code"/>
+                <field name="document_type"/>
+                <field name="description"/>
+                <filter string="Tự động thiết lập hạn nộp" name="auto_deadline" domain="[('auto_set_deadline','=',True)]"/>
+                <filter string="Lưu trữ" name="inactive" domain="[('active','=',False)]"/>
+                <separator/>
+                <filter string="Đăng ký mới" name="filter_registration" domain="[('document_type','=','registration')]"/>
+                <filter string="Điều chỉnh thông tin" name="filter_adjustment" domain="[('document_type','=','adjustment')]"/>
+                <filter string="Chấm dứt tham gia" name="filter_termination" domain="[('document_type','=','termination')]"/>
+                <filter string="Thẻ BHYT" name="filter_bhyt_card" domain="[('document_type','=','bhyt_card')]"/>
+                <filter string="Sổ BHXH" name="filter_bhxh_book" domain="[('document_type','=','bhxh_book')]"/>
+                <group expand="0" string="Nhóm theo">
+                    <filter string="Loại tài liệu" name="group_document_type" context="{'group_by': 'document_type'}"/>
+                    <filter string="Công ty" name="group_company" context="{'group_by': 'company_id'}" groups="base.group_multi_company"/>
+                </group>
+            </search>
+        </field>
+    </record>
+    
+    <!-- Action for Insurance Document Templates -->
+    <record id="action_insurance_document_template" model="ir.actions.act_window">
+        <field name="name">Mẫu tài liệu bảo hiểm</field>
+        <field name="res_model">insurance.document.template</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id" ref="view_insurance_document_template_list"/>
+        <field name="search_view_id" ref="view_insurance_document_template_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Tạo mẫu tài liệu bảo hiểm mới
+            </p>
+            <p>
+                Tạo mẫu tài liệu bảo hiểm để tự động tạo hồ sơ cho nhiều nhân viên cùng lúc.
+            </p>
+        </field>
+    </record>
+    
+    <!-- Menu for Insurance Document Templates -->
+    <menuitem id="menu_insurance_document_template"
+              name="Mẫu tài liệu"
+              parent="menu_hr_insurance_root"
+              action="action_insurance_document_template"
+              sequence="7"/>
+</odoo> 

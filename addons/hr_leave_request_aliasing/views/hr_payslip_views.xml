@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Form View for HR Payslip (Inherited) -->
+    <record id="hr_payslip_view_form_inherit_insurance" model="ir.ui.view">
+        <field name="name">hr.payslip.view.form.inherit.insurance</field>
+        <field name="model">hr.payslip</field>
+        <field name="inherit_id" ref="hr_payroll_community.view_hr_payslip_form"/>
+        <field name="arch" type="xml">
+            <!-- Add insurance allowance fields to the Other Inputs section -->
+            <xpath expr="//notebook//page[@name='account_info']" position="after">
+                <page string="BHXH" name="insurance_info">
+                    <group>
+                        <group string="Trợ cấp BHXH" name="insurance_allowance">
+                            <field name="sick_leave_insurance"/>
+                            <field name="maternity_leave_insurance"/>
+                            <field name="total_insurance_allowance" class="oe_subtotal_footer_separator"/>
+                        </group>
+                        <group string="Ảnh hưởng đến lương" name="salary_impact">
+                            <field name="total_salary_deduction"/>
+                            <button name="action_compute_insurance_allowance"
+                                    string="Tính lại trợ cấp BHXH"
+                                    type="object"
+                                    class="oe_link"
+                                    invisible="state not in ('draft', 'verify')"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+    
+    <!-- List View for HR Payslip (Inherited) -->
+    <record id="hr_payslip_view_list_inherit_insurance" model="ir.ui.view">
+        <field name="name">hr.payslip.view.list.inherit.insurance</field>
+        <field name="model">hr.payslip</field>
+        <field name="inherit_id" ref="hr_payroll_community.view_hr_payslip_tree"/>
+        <field name="arch" type="xml">
+            <!-- Add insurance-related fields -->
+            <xpath expr="//field[@name='state']" position="before">
+                <field name="insurance_deductions" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+</odoo> 

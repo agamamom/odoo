@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+    <record id="disable_ohrms_core_menu_view_settings_field_override_aggressive" model="ir.ui.view">
+        <field name="name">disable.ohrms.core.menu.view.settings.field.override.aggressive</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="ohrms_core.res_config_settings_view_form"/>
+        <field name="priority" eval="999"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[contains(@class, 'o_setting_box')][.//field[@name='order_menu']]" position="replace">
+                [Khối cài đặt 'Menu Management' (bao gồm trường 'order_menu') đã được module 'hr_leave_request_aliasing' loại bỏ.
+                Hành động này được thực hiện để ngăn chặn lỗi phía client dai dẳng:
+                'Error: \"res.config.settings\".\"order_menu\" field is undefined.'
+                Việc ghi đè này đảm bảo rằng thành phần UI có vấn đề sẽ không được render.]
+            </xpath>
+        </field>
+        <field name="active" eval="True"/>
+    </record>
+    -->
+</odoo> 

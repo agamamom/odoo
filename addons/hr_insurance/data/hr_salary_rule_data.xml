@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Insurance Salary Rule and Input-->
+    <record id="hr_salary_rule_insurance" model="hr.salary.rule">
+        <field name="code">INSUR</field>
+        <field name="name">Insurance Amount</field>
+        <field name="category_id" ref="hr_payroll_community.DED"/>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = -( inputs.INSUR and inputs.INSUR.amount)</field>
+        <field name="appears_on_payslip" eval="True"/>
+        <field name="sequence" eval="190"/>
+    </record>
+    <!-- Insurance Input Rule -->
+    <record id="hr_rule_input_insurance" model="hr.rule.input">
+        <field name="code">INSUR</field>
+        <field name="name">Insurance Amount</field>
+        <field name="input_id" ref="hr_salary_rule_insurance"/>
+    </record>
+    
+    <!-- Bảo hiểm xã hội (BHXH) -->
+    <record id="hr_salary_rule_bhxh" model="hr.salary.rule">
+        <field name="code">BHXH</field>
+        <field name="name">Bảo hiểm xã hội (8%)</field>
+        <field name="category_id" ref="hr_payroll_community.DED"/>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = -( inputs.BHXH and inputs.BHXH.amount)</field>
+        <field name="appears_on_payslip" eval="True"/>
+        <field name="sequence" eval="191"/>
+    </record>
+    <record id="hr_rule_input_bhxh" model="hr.rule.input">
+        <field name="code">BHXH</field>
+        <field name="name">Bảo hiểm xã hội (8%)</field>
+        <field name="input_id" ref="hr_salary_rule_bhxh"/>
+    </record>
+    
+    <!-- Bảo hiểm y tế (BHYT) -->
+    <record id="hr_salary_rule_bhyt" model="hr.salary.rule">
+        <field name="code">BHYT</field>
+        <field name="name">Bảo hiểm y tế (1.5%)</field>
+        <field name="category_id" ref="hr_payroll_community.DED"/>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = -( inputs.BHYT and inputs.BHYT.amount)</field>
+        <field name="appears_on_payslip" eval="True"/>
+        <field name="sequence" eval="192"/>
+    </record>
+    <record id="hr_rule_input_bhyt" model="hr.rule.input">
+        <field name="code">BHYT</field>
+        <field name="name">Bảo hiểm y tế (1.5%)</field>
+        <field name="input_id" ref="hr_salary_rule_bhyt"/>
+    </record>
+    
+    <!-- Bảo hiểm thất nghiệp (BHTN) -->
+    <record id="hr_salary_rule_bhtn" model="hr.salary.rule">
+        <field name="code">BHTN</field>
+        <field name="name">Bảo hiểm thất nghiệp (1%)</field>
+        <field name="category_id" ref="hr_payroll_community.DED"/>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = -( inputs.BHTN and inputs.BHTN.amount)</field>
+        <field name="appears_on_payslip" eval="True"/>
+        <field name="sequence" eval="193"/>
+    </record>
+    <record id="hr_rule_input_bhtn" model="hr.rule.input">
+        <field name="code">BHTN</field>
+        <field name="name">Bảo hiểm thất nghiệp (1%)</field>
+        <field name="input_id" ref="hr_salary_rule_bhtn"/>
+    </record>
+    
+    <!-- Linking All Insurance Rules to Payroll Structure -->
+    <record id="hr_payroll_community.structure_base"
+            model="hr.payroll.structure">
+        <field eval="[(4, ref('hr_salary_rule_insurance')),
+                     (4, ref('hr_salary_rule_bhxh')),
+                     (4, ref('hr_salary_rule_bhyt')),
+                     (4, ref('hr_salary_rule_bhtn'))]"
+               name="rule_ids"/>
+    </record>
+    
+    <!-- Default Insurance Policies -->
+    <record id="insurance_policy_bhxh" model="insurance.policy">
+        <field name="name">Bảo hiểm xã hội (BHXH)</field>
+        <field name="is_social_insurance" eval="True"/>
+        <field name="insurance_type">bhxh</field>
+        <field name="employee_rate">8</field>
+        <field name="company_rate">17.5</field>
+        <field name="note_field">Bảo hiểm xã hội theo quy định của pháp luật Việt Nam</field>
+    </record>
+    
+    <record id="insurance_policy_bhyt" model="insurance.policy">
+        <field name="name">Bảo hiểm y tế (BHYT)</field>
+        <field name="is_social_insurance" eval="True"/>
+        <field name="insurance_type">bhyt</field>
+        <field name="employee_rate">1.5</field>
+        <field name="company_rate">3</field>
+        <field name="note_field">Bảo hiểm y tế theo quy định của pháp luật Việt Nam</field>
+    </record>
+    
+    <record id="insurance_policy_bhtn" model="insurance.policy">
+        <field name="name">Bảo hiểm thất nghiệp (BHTN)</field>
+        <field name="is_social_insurance" eval="True"/>
+        <field name="insurance_type">bhtn</field>
+        <field name="employee_rate">1</field>
+        <field name="company_rate">1</field>
+        <field name="note_field">Bảo hiểm thất nghiệp theo quy định của pháp luật Việt Nam</field>
+    </record>
+</odoo>

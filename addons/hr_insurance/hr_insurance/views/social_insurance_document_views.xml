@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- List view for Social Insurance Documents -->
+    <record id="view_social_insurance_document_list" model="ir.ui.view">
+        <field name="name">social.insurance.document.list</field>
+        <field name="model">social.insurance.document</field>
+        <field name="arch" type="xml">
+            <list string="Tài liệu BHXH">
+                <field name="name" width="100"/>
+                <field name="employee_id" width="220"/>
+                <field name="document_type" width="180"/>
+                <field name="date" width="100"/>
+                <field name="deadline" width="100"/>
+                <field name="bhyt_expiry_date" optional="show" width="150"/>
+                <field name="is_bhyt_expired" optional="show" widget="boolean_toggle" width="100"/>
+                <field name="days_to_expire" optional="show" width="120"/>
+                <field name="state" decoration-info="state == 'draft'" 
+                       decoration-warning="state == 'submitted'" 
+                       decoration-success="state == 'approved'" 
+                       decoration-danger="state in ('rejected', 'cancelled')"
+                       width="120"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form view for Social Insurance Documents -->
+    <record id="view_social_insurance_document_form" model="ir.ui.view">
+        <field name="name">social.insurance.document.form</field>
+        <field name="model">social.insurance.document</field>
+        <field name="arch" type="xml">
+            <form string="Tài liệu BHXH">
+                <field name="related_document_model" invisible="1" />
+                <field name="related_document_id" invisible="1" />
+                <field name="related_partner" invisible="1" />
+                <header>
+                    <button name="action_submit" string="Nộp tài liệu" type="object" 
+                            class="oe_highlight" invisible="state != 'draft'"/>
+                    <button name="action_approve" string="Duyệt" type="object" 
+                            class="oe_highlight" invisible="state != 'submitted'"/>
+                    <button name="action_reject" string="Từ chối" type="object" 
+                            invisible="state not in ('draft', 'submitted')"/>
+                    <button name="action_cancel" string="Hủy" type="object" 
+                            invisible="state in ('approved', 'rejected', 'cancelled')"/>
+                    <button name="action_draft" string="Chuyển về dự thảo" type="object" 
+                            invisible="state not in ('rejected', 'cancelled')"/>
+                    <button name="action_generate_form" string="Tạo biểu mẫu" type="object" 
+                            class="btn-primary" 
+                            invisible="document_type not in ('registration', 'adjustment', 'termination', 'unemployment', 'tk1_ts', 'tk3_ts')"/>
+                    <field name="state" widget="statusbar" 
+                           statusbar_visible="draft,submitted,approved"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_generate_form" 
+                                string="Tạo biểu mẫu" 
+                                type="object" 
+                                class="oe_stat_button" 
+                                icon="fa-file-text-o"
+                                invisible="document_type not in ('registration', 'adjustment', 'termination', 'unemployment', 'tk1_ts', 'tk3_ts')"/>
+                    </div>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="employee_id"/>
+                            <field name="insurance_id"/>
+                            <field name="document_type"/>
+                            <field name="adjustment_type" invisible="document_type != 'adjustment'"/>
+                        </group>
+                        <group>
+                            <field name="date"/>
+                            <field name="deadline"/>
+                            <field name="submit_date" readonly="state in ('submitted', 'approved')"/>
+                            <field name="approval_date" readonly="state == 'approved'"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Thông tin chung" name="general_info">
+                            <group>
+                                <group>
+                                    <field name="reference"/>
+                                    <field name="officer_id"/>
+                                </group>
+                                <group>
+                                    <field name="agency_officer"/>
+                                    <field name="agency_response"/>
+                                </group>
+                            </group>
+                        </page>
+                        
+                        <page string="Thẻ BHYT" name="bhyt_card" invisible="document_type != 'bhyt_card'">
+                            <group>
+                                <group>
+                                    <field name="bhyt_number"/>
+                                    <field name="bhyt_issue_date"/>
+                                    <field name="bhyt_expiry_date"/>
+                                </group>
+                                <group>
+                                    <field name="bhyt_hospital"/>
+                                    <field name="is_bhyt_expired"/>
+                                    <field name="days_to_expire"/>
+                                </group>
+                            </group>
+                        </page>
+                        
+                        <page string="Sổ BHXH" name="bhxh_book" invisible="document_type != 'bhxh_book'">
+                            <group>
+                                <group>
+                                    <field name="bhxh_book_number"/>
+                                    <field name="bhxh_book_issue_date"/>
+                                </group>
+                                <group>
+                                    <field name="bhxh_book_issue_place"/>
+                                </group>
+                            </group>
+                        </page>
+                        
+                        <page string="Điều chỉnh thông tin" name="adjustment" invisible="document_type != 'adjustment'">
+                            <group>
+                                <group>
+                                    <field name="old_value"/>
+                                </group>
+                                <group>
+                                    <field name="new_value"/>
+                                </group>
+                            </group>
+                        </page>
+                        
+                        <page string="Ghi chú" name="notes">
+                            <field name="notes" placeholder="Ghi chú về tài liệu..."/>
+                        </page>
+                        
+                        <page string="Tài liệu đính kèm" name="attachments">
+                            <field name="attachment_ids" widget="many2many_binary"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter" invisible="1">
+                    <field name="message_follower_ids" widget="mail_followers" invisible="1"/>
+                    <field name="message_ids" widget="mail_thread" invisible="1"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- Search view for Social Insurance Documents -->
+    <record id="view_social_insurance_document_search" model="ir.ui.view">
+        <field name="name">social.insurance.document.search</field>
+        <field name="model">social.insurance.document</field>
+        <field name="arch" type="xml">
+            <search string="Tìm kiếm tài liệu BHXH">
+                <field name="name"/>
+                <field name="employee_id"/>
+                <field name="document_type"/>
+                <field name="reference"/>
+                <field name="bhyt_number"/>
+                <field name="bhxh_book_number"/>
+                
+                <!-- Filters -->
+                <filter string="Dự thảo" name="filter_draft" domain="[('state','=','draft')]"/>
+                <filter string="Đã nộp" name="filter_submitted" domain="[('state','=','submitted')]"/>
+                <filter string="Đã duyệt" name="filter_approved" domain="[('state','=','approved')]"/>
+                <filter string="Bị từ chối" name="filter_rejected" domain="[('state','=','rejected')]"/>
+                <filter string="Đã hủy" name="filter_cancelled" domain="[('state','=','cancelled')]"/>
+                
+                <separator/>
+                <filter string="Thẻ BHYT hết hạn" name="filter_bhyt_expired" domain="[('is_bhyt_expired','=',True)]"/>
+                <filter string="Thẻ BHYT sắp hết hạn" name="filter_bhyt_expiring" domain="[('days_to_expire','>',0),('days_to_expire','&lt;=',30)]"/>
+                
+                <separator/>
+                <filter string="Đăng ký mới" name="filter_registration" domain="[('document_type','=','registration')]"/>
+                <filter string="Điều chỉnh thông tin" name="filter_adjustment" domain="[('document_type','=','adjustment')]"/>
+                <filter string="Chấm dứt tham gia" name="filter_termination" domain="[('document_type','=','termination')]"/>
+                <filter string="Thẻ BHYT" name="filter_bhyt_card" domain="[('document_type','=','bhyt_card')]"/>
+                <filter string="Sổ BHXH" name="filter_bhxh_book" domain="[('document_type','=','bhxh_book')]"/>
+                
+                <!-- Groups -->
+                <group expand="0" string="Nhóm theo">
+                    <filter string="Nhân viên" name="group_employee" context="{'group_by': 'employee_id'}"/>
+                    <filter string="Loại tài liệu" name="group_document_type" context="{'group_by': 'document_type'}"/>
+                    <filter string="Tháng tạo" name="group_date" context="{'group_by': 'date:month'}"/>
+                    <filter string="Trạng thái" name="group_state" context="{'group_by': 'state'}"/>
+                    <filter string="Công ty" name="group_company" context="{'group_by': 'company_id'}" groups="base.group_multi_company"/>
+                </group>
+            </search>
+        </field>
+    </record>
+    
+    <!-- Action for Social Insurance Document -->
+    <record id="action_social_insurance_document" model="ir.actions.act_window">
+        <field name="name">Tài liệu BHXH</field>
+        <field name="res_model">social.insurance.document</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id" ref="view_social_insurance_document_list"/>
+        <field name="search_view_id" ref="view_social_insurance_document_search"/>
+        <field name="context">{'search_default_filter_submitted': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Tạo tài liệu BHXH mới
+            </p>
+            <p>
+                Tài liệu BHXH bao gồm: hồ sơ đăng ký, điều chỉnh, chấm dứt tham gia, thẻ BHYT, sổ BHXH, và các biểu mẫu liên quan.
+            </p>
+        </field>
+    </record>
+    
+    <!-- Menu item for Social Insurance Document -->
+    <menuitem id="menu_social_insurance_document"
+              name="Tài liệu BHXH" 
+              parent="menu_hr_insurance_root" 
+              action="action_social_insurance_document" 
+              sequence="5"/>
+</odoo> 

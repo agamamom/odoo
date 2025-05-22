@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Dữ liệu mẫu cho BHXH -->
+        <record id="demo_employee_insurance_1" model="hr.employee.insurance">
+            <field name="employee_id" ref="hr.employee_admin"/>
+            <field name="insurance_number">BH0123456789</field>
+            <field name="issue_date" eval="(DateTime.today() - relativedelta(years=2)).strftime('%Y-%m-%d')"/>
+            <field name="is_active" eval="True"/>
+            <field name="basic_salary">10000000</field>
+            <field name="insurance_rate">10.5</field>
+            <field name="company_insurance_rate">17.5</field>
+            <field name="sick_leave_coefficient">0.75</field>
+            <field name="maternity_leave_coefficient">1.0</field>
+        </record>
+        
+        <record id="demo_employee_insurance_2" model="hr.employee.insurance">
+            <field name="employee_id" ref="hr.employee_qdp"/>
+            <field name="insurance_number">BH9876543210</field>
+            <field name="issue_date" eval="(DateTime.today() - relativedelta(years=1)).strftime('%Y-%m-%d')"/>
+            <field name="is_active" eval="True"/>
+            <field name="basic_salary">8000000</field>
+            <field name="insurance_rate">10.5</field>
+            <field name="company_insurance_rate">17.5</field>
+            <field name="sick_leave_coefficient">0.75</field>
+            <field name="maternity_leave_coefficient">1.0</field>
+        </record>
+    </data>
+</odoo> 
