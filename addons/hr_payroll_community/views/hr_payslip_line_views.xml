@@ -5,17 +5,16 @@
         <field name="name">hr.payslip.line.view.list</field>
         <field name="model">hr.payslip.line</field>
         <field name="arch" type="xml">
-            <list string="Salary Structure" editable="bottom"
-                  decoration-info="total == 0">
-                <field name="category_id"/>
-                <field name="employee_id" invisible="1"/>
-                <field name="sequence"/>
-                <field name="name"/>
-                <field name="code"/>
-                <field name="quantity"/>
-                <field name="rate"/>
-                <field name="amount"/>
-                <field name="total"/>
+            <list string="Cấu trúc lương" editable="bottom" decoration-info="total == 0">
+                <field name="category_id" string="Nhóm" width="120"/>
+                <field name="employee_id" string="Nhân viên" invisible="1"/>
+                <field name="sequence" string="Thứ tự" width="60"/>
+                <field name="name" string="Diễn giải" width="200"/>
+                <field name="code" string="Mã" width="80"/>
+                <field name="quantity" string="Số lượng" width="80"/>
+                <field name="rate" string="Tỷ lệ (%)" width="80"/>
+                <field name="amount" string="Số tiền" width="120"/>
+                <field name="total" string="Thành tiền" width="120"/>
                 <field name="amount_select" invisible="1"/>
                 <field name="register_id" invisible="1"/>
             </list>
@@ -26,24 +25,22 @@
         <field name="name">hr.payslip.line.view.form</field>
         <field name="model">hr.payslip.line</field>
         <field name="arch" type="xml">
-            <form string="Payslip Line">
+            <form string="Dòng lương">
                 <group>
                     <group>
-                        <field name="name"/>
-                        <field name="code"/>
-                        <field name="slip_id"/>
-                        <field name="employee_id"/>
+                        <field name="name" string="Diễn giải"/>
+                        <field name="code" string="Mã"/>
+                        <field name="slip_id" string="Phiếu lương"/>
+                        <field name="employee_id" string="Nhân viên"/>
                     </group>
-                    <group string="Calculations">
-                        <field name="category_id"/>
-                        <field name="amount_select"/>
-                        <field name="amount_fix"
-                               readonly="amount_select,'!=','fix'"/>
-                        <field name="amount_percentage"
-                               readonly="amount_select,'!=','percentage'"/>
-                        <field name="sequence"/>
+                    <group string="Tính toán">
+                        <field name="category_id" string="Nhóm"/>
+                        <field name="amount_select" string="Kiểu số tiền"/>
+                        <field name="amount_fix" string="Số tiền cố định" readonly="amount_select,'!=','fix'"/>
+                        <field name="amount_percentage" string="Tỷ lệ (%)" readonly="amount_select,'!=','percentage'"/>
+                        <field name="sequence" string="Thứ tự"/>
                     </group>
-                    <field name="note"/>
+                    <field name="note" string="Ghi chú"/>
                 </group>
             </form>
         </field>
@@ -53,21 +50,16 @@
         <field name="name">hr.payslip.line.select</field>
         <field name="model">hr.payslip.line</field>
         <field name="arch" type="xml">
-            <search string="Search Payslip Lines">
-                <field name="name" string="Payslip Lines"
-                       filter_domain="['|',('name','ilike',self),('code','ilike',self)]"/>
-                <field name="amount_select"/>
-                <field name="slip_id"/>
-                <field name="category_id"/>
-                <group col="8" colspan="4" expand="0" string="Group By">
-                    <filter string="Salary Rule Category" name="category_id"
-                            context="{'group_by':'category_id'}"/>
-                    <filter string="Contribution Register" name="register_id"
-                            context="{'group_by':'register_id'}"/>
-                    <filter string="Amount Type" name="amount_select"
-                            context="{'group_by':'amount_select'}"/>
-                    <filter string="Employees" name="employee_id"
-                            context="{'group_by':'employee_id'}"/>
+            <search string="Tìm kiếm dòng lương">
+                <field name="name" string="Diễn giải" filter_domain="['|',('name','ilike',self),('code','ilike',self)]"/>
+                <field name="amount_select" string="Kiểu số tiền"/>
+                <field name="slip_id" string="Phiếu lương"/>
+                <field name="category_id" string="Nhóm"/>
+                <group col="8" colspan="4" expand="0" string="Nhóm theo">
+                    <filter string="Nhóm lương" name="category_id" context="{'group_by':'category_id'}"/>
+                    <filter string="Quỹ đóng góp" name="register_id" context="{'group_by':'register_id'}"/>
+                    <filter string="Kiểu số tiền" name="amount_select" context="{'group_by':'amount_select'}"/>
+                    <filter string="Nhân viên" name="employee_id" context="{'group_by':'employee_id'}"/>
                 </group>
             </search>
         </field>
@@ -75,30 +67,28 @@
 
     <!--    removed src_model="hr.payslip" -->
     <record id="action_hr_payslip_line" model="ir.actions.act_window">
-        <field name="name">Payslip Computation Details</field>
+        <field name="name">Chi tiết tính lương</field>
         <field name="res_model">hr.payslip.line</field>
-        <field name="context">{'default_slip_id':
-            active_id,'search_default_slip_id': active_id}
-        </field>
+        <field name="context">{'default_slip_id':active_id,'search_default_slip_id': active_id}</field>
     </record>
     <record id="hr_payslip_view_form" model="ir.ui.view">
         <field name="name">hr.payslip.view.form</field>
         <field name="model">hr.payslip</field>
         <field name="arch" type="xml">
-            <form string="Payslip">
+            <form string="Phiếu lương">
                 <header>
-                    <button string="Confirm" name="action_payslip_done"
+                    <button string="Xác nhận" name="action_payslip_done"
                             type="object" invisible="state != 'draft'"
                             class="oe_highlight"/>
-                    <button string="Refund" name="action_refund_sheet"
+                    <button string="Hoàn phiếu lương" name="action_refund_sheet"
                             invisible="state not in ('confirm', 'done')"
                             type='object'/>
-                    <button string="Set to Draft" name="action_payslip_draft"
+                    <button string="Chuyển về nháp" name="action_payslip_draft"
                             type="object" invisible="state != 'cancel'"/>
-                    <button string="Compute Sheet" name="action_compute_sheet"
+                    <button string="Tính lương" name="action_compute_sheet"
                             type="object" invisible="state != 'draft'"
                             class="oe_highlight"/>
-                    <button string="Cancel Payslip" name="action_payslip_cancel"
+                    <button string="Hủy phiếu lương" name="action_payslip_cancel"
                             type="object"
                             invisible="state in ('draft','hr_check','confirm','verify','cancel')"/>
                     <field name="state" widget="statusbar"
@@ -111,19 +101,19 @@
                                 icon="fa-money"
                                 type="action">
                             <field name="payslip_count" widget="statinfo"
-                                   string="Payslip"
-                                   help="Payslip Computation Details"/>
+                                   string="Phiếu lương"
+                                   help="Chi tiết tính lương"/>
                         </button>
                     </div>
                     <div class="oe_title">
                         <label for="employee_id" class="oe_edit_only"/>
                         <h1>
-                            <field name="employee_id" placeholder="Employee"
+                            <field name="employee_id" placeholder="Nhân viên"
                                    readonly="state != 'draft'"/>
                         </h1>
                     </div>
                     <group col="4">
-                        <label for="date_from" string="Period"/>
+                        <label for="date_from" string="Kỳ lương"/>
                         <div>
                             <field name="date_from" class="oe_inline"
                                    readonly="state != 'draft'"/>
@@ -131,30 +121,26 @@
                             <field name="date_to" class="oe_inline"
                                    readonly="state != 'draft'"/>
                         </div>
-                        <field name="contract_id"
-                               domain="[('employee_id','=',employee_id),('date_start','&lt;=',date_to),'|',('date_end','&gt;=',date_from),('date_end','=',False)]"
-                               context="{'default_employee_id': employee_id}"
-                               readonly="state != 'draft'"/>
-                        <field name="number" readonly="state != 'draft'"/>
-                        <field name="struct_id" readonly="state != 'draft'"/>
-                        <field name="name" readonly="state != 'draft'"/>
-                        <field name="credit_note" readonly="state != 'draft'"/>
+                        <field name="contract_id" string="Hợp đồng" domain="[('employee_id','=',employee_id),('date_start','&lt;=',date_to),'|',('date_end','&gt;=',date_from),('date_end','=',False)]" context="{'default_employee_id': employee_id}" readonly="state != 'draft'"/>
+                        <field name="number" string="Số phiếu" readonly="state != 'draft'"/>
+                        <field name="struct_id" string="Cấu trúc lương" readonly="state != 'draft'"/>
+                        <field name="name" string="Diễn giải" readonly="state != 'draft'"/>
+                        <field name="credit_note" string="Phiếu ghi có" readonly="state != 'draft'"/>
                     </group>
                     <notebook>
-                        <page string="Worked Days &amp; Inputs">
-                            <separator string="Worked Days"/>
+                        <page string="Ngày công &amp; Khoản khác">
+                            <separator string="Ngày công"/>
                             <field name="worked_days_line_ids"
                                    readonly="state != 'draft'">
-                                <list string="Worked Days" editable="bottom">
-                                    <field name="name"/>
-                                    <field name="code"/>
-                                    <field name="number_of_days"
-                                           sum="Total Working Days"/>
-                                    <field name="number_of_hours"/>
-                                    <field name="contract_id"/>
-                                    <field name="sequence" invisible="True"/>
+                                <list string="Ngày công" editable="bottom">
+                                    <field name="name" string="Diễn giải"/>
+                                    <field name="code" string="Mã"/>
+                                    <field name="number_of_days" string="Số ngày" sum="Total Working Days"/>
+                                    <field name="number_of_hours" string="Số giờ"/>
+                                    <field name="contract_id" string="Hợp đồng"/>
+                                    <field name="sequence" string="Thứ tự" invisible="True"/>
                                 </list>
-                                <form string="Worked Day">
+                                <form string="Ngày công">
                                     <group col="4">
                                         <field name="name"/>
                                         <field name="code"/>
@@ -165,44 +151,48 @@
                                     </group>
                                 </form>
                             </field>
-                            <separator string="Other Inputs"/>
+                            <separator string="Khoản khác"/>
                             <field name="input_line_ids" colspan="4" nolabel="1"
                                    readonly="state != 'draft'">
-                                <list string="Input Data" editable="bottom">
-                                    <field name="name"/>
-                                    <field name="code"/>
-                                    <field name="amount"/>
-                                    <field name="contract_id"/>
-                                    <field name="sequence" invisible="True"/>
+                                <list string="Các khoản khác" editable="bottom">
+                                    <field name="name" string="Diễn giải" width="180"/>
+                                    <field name="code" string="Mã" width="80"/>
+                                    <field name="amount" string="Số tiền" width="120"/>
+                                    <field name="contract_id" string="Hợp đồng" width="120"/>
+                                    <field name="advance_create_date" string="Ngày tạo ứng lương" width="150"/>
+                                    <field name="advance_approve_date" string="Ngày duyệt ứng lương" width="150"/>
+                                    <field name="sequence" string="Thứ tự" invisible="True"/>
                                 </list>
-                                <form string="Payslip Line">
+                                <form string="Dòng input phiếu lương">
                                     <group col="4">
-                                        <field name="name"/>
-                                        <field name="code"/>
-                                        <field name="sequence"/>
-                                        <field name="amount"/>
-                                        <field name="contract_id"/>
+                                        <field name="name" string="Diễn giải"/>
+                                        <field name="code" string="Mã"/>
+                                        <field name="sequence" string="Thứ tự"/>
+                                        <field name="amount" string="Số tiền"/>
+                                        <field name="contract_id" string="Hợp đồng"/>
+                                        <field name="advance_create_date" string="Ngày tạo ứng lương"/>
+                                        <field name="advance_approve_date" string="Ngày duyệt ứng lương"/>
                                     </group>
                                 </form>
                             </field>
                         </page>
-                        <page string="Salary Computation">
+                        <page string="Bảng tính lương">
                             <field name="line_ids" colspan="4" nolabel="1"
                                    readonly="state != 'draft'">
-                                <list string="Salary Structure"
+                                <list string="Cấu trúc lương"
                                       editable="bottom"
                                       decoration-info="total == 0">
-                                    <field name="name"/>
-                                    <field name="code"/>
-                                    <field name="category_id"/>
-                                    <field name="sequence" invisible="1"/>
-                                    <field name="quantity"/>
-                                    <field name="rate"/>
-                                    <field name="salary_rule_id"/>
-                                    <field name="amount"/>
-                                    <field name="total"/>
+                                    <field name="name" string="Tên khoản lương"/>
+                                    <field name="code" string="Mã khoản"/>
+                                    <field name="category_id" string="Nhóm lương"/>
+                                    <field name="sequence" string="Thứ tự" invisible="1"/>
+                                    <field name="quantity" string="Số lượng"/>
+                                    <field name="rate" string="Tỷ lệ (%)"/>
+                                    <field name="salary_rule_id" string="Quy tắc lương"/>
+                                    <field name="amount" string="Số tiền"/>
+                                    <field name="total" string="Thành tiền"/>
                                 </list>
-                                <form string="Payslip Line">
+                                <form string="Dòng lương">
                                     <group col="4">
                                         <field name="name"/>
                                         <field name="code"/>
@@ -217,23 +207,23 @@
                                 </form>
                             </field>
                         </page>
-                        <page string="Details By Salary Rule Category">
+                        <page string="Chi tiết theo nhóm lương">
 
                             <field name="details_by_salary_rule_category_ids"
                                    context="{'search_default_category_id':1}"
                                    domain="[('appears_on_payslip', '=', True)]">
-                                <list string="Payslip Lines"
+                                <list string="Dòng lương"
                                       decoration-info="total == 0">
-                                    <field name="category_id"/>
-                                    <field name="name"/>
-                                    <field name="code"/>
-                                    <field name="total"/>
+                                    <field name="category_id" string="Nhóm lương"/>
+                                    <field name="name" string="Tên khoản lương"/>
+                                    <field name="code" string="Mã khoản"/>
+                                    <field name="total" string="Thành tiền"/>
                                 </list>
                             </field>
                         </page>
-                        <page string="Accounting Information">
+                        <page string="Thông tin kế toán">
                             <group>
-                                <group string="Miscellaneous">
+                                <group string="Thông tin khác">
                                     <field name="company_id"
                                            groups="base.group_multi_company"
                                            readonly="state != 'draft'"/>
@@ -241,14 +231,14 @@
                                            domain="[('state','=','draft')]"
                                            readonly="state != 'draft'"/>
                                 </group>
-                                <group name="accounting" string="Accounting">
+                                <group name="accounting" string="Kế toán">
                                     <field name="paid"
                                            readonly="state != 'draft'"/>
                                 </group>
                             </group>
                             <div colspan="4">
                                 <field name="note"
-                                       placeholder="Add an internal note..."
+                                       placeholder="Thêm ghi chú nội bộ..."
                                        readonly="state != 'draft'"/>
                             </div>
                         </page>

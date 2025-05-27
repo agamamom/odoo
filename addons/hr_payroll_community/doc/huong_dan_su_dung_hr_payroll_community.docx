@@ -1,0 +1,63 @@
+HƯỚNG DẪN SỬ DỤNG MODULE QUẢN LÝ BẢNG LƯƠNG (hr_payroll_community)
+
+Dành cho người mới, không biết công nghệ
+
+---
+
+1. Mở hệ thống Odoo
+- Bật máy tính, mở trình duyệt web (Chrome, Edge, Firefox...)
+- Gõ vào ô địa chỉ: http://localhost:8077 rồi bấm Enter
+
+2. Đăng nhập vào hệ thống
+- Nhập tên đăng nhập và mật khẩu được cấp
+- Bấm nút "Đăng nhập"
+
+3. Vào phần Bảng lương
+- Tìm biểu tượng hoặc chữ "Bảng lương" (Payroll) trên màn hình
+- Bấm vào để vào phần quản lý lương
+
+4. Xem danh sách phiếu lương
+- Trong menu bên trái, chọn "Phiếu lương" (Payslips)
+- Danh sách các phiếu lương sẽ hiện ra
+
+5. Xem chi tiết một phiếu lương
+- Bấm vào tên nhân viên trong danh sách để xem chi tiết phiếu lương
+- Bạn sẽ thấy các thông tin: số tiền lương, các khoản phụ cấp, khấu trừ, ngày công, trạng thái phiếu lương
+
+6. Tạo phiếu lương mới
+- Bấm nút "Tạo" (Create)
+- Chọn nhân viên, nhập các thông tin cần thiết (hệ thống sẽ tự động điền phần lớn thông tin)
+- Chọn cấu trúc lương phù hợp (nếu có nhiều lựa chọn)
+- Bấm "Lưu" (Save)
+
+7. Xác nhận phiếu lương
+- Sau khi kiểm tra thông tin, bấm nút "Xác nhận" (Confirm/Done)
+- Hệ thống sẽ tự động tính toán các khoản lương, phụ cấp, khấu trừ
+- Nếu có lỗi, hệ thống sẽ báo lỗi để bạn kiểm tra lại
+
+8. Xem báo cáo lương
+- Vào menu "Báo cáo" (Reports) trong phần Bảng lương
+- Chọn loại báo cáo muốn xem: tổng hợp lương, chi tiết từng nhân viên, theo phòng ban...
+- Có thể tải về file Excel hoặc PDF nếu cần
+
+9. Quản lý đợt chạy lương
+- Vào mục "Đợt chạy lương" (Payroll Batches)
+- Tạo đợt chạy lương mới cho nhiều nhân viên cùng lúc
+- Lọc nhân viên theo phòng ban, vị trí nếu cần
+- Xác nhận hàng loạt phiếu lương trong đợt chạy
+
+10. Một số lưu ý
+- Nếu không thao tác được, hãy hỏi quản trị viên hoặc bộ phận kế toán
+- Không tự ý sửa các thông tin lương nếu không có quyền
+- Kiểm tra kỹ thông tin trước khi xác nhận phiếu lương
+
+11. Giải thích một số khái niệm đơn giản
+- Phiếu lương: Là bảng tính lương cho từng nhân viên
+- Đợt chạy lương: Là đợt tính lương cho nhiều nhân viên cùng lúc
+- Cấu trúc lương: Là mẫu tính lương áp dụng cho từng nhóm nhân viên
+- Phụ cấp: Là các khoản cộng thêm vào lương (nhà ở, đi lại, ăn uống...)
+- Khấu trừ: Là các khoản trừ vào lương (bảo hiểm, thuế...)
+
+---
+
+Kết thúc hướng dẫn. Nếu có thắc mắc, hãy liên hệ người phụ trách hoặc bộ phận IT để được hỗ trợ. 

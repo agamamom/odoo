@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Form View -->
+        <record id="view_vn_payroll_report_d01_ts_form" model="ir.ui.view">
+            <field name="name">vn.payroll.report.d01.ts.form</field>
+            <field name="model">vn.payroll.report.d01.ts</field>
+            <field name="arch" type="xml">
+                <form string="Báo cáo BHXH mẫu D01-TS">
+                    <header>
+                        <button name="action_generate_report" string="Tạo báo cáo" type="object" class="oe_highlight" states="draft"/>
+                        <button name="action_download_report" string="Tải xuống" type="object" class="oe_highlight" states="generated"/>
+                        <field name="state" widget="statusbar" statusbar_visible="draft,generated,error"/>
+                    </header>
+                    <sheet>
+                        <div class="oe_title">
+                            <h1>
+                                <field name="name" placeholder="Tên báo cáo"/>
+                            </h1>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="company_id" options="{'no_create': True}" required="1"/>
+                                <field name="date_from"/>
+                                <field name="date_to"/>
+                                <field name="department_id" options="{'no_create': True}"/>
+                            </group>
+                            <group>
+                                <field name="is_all_employees"/>
+                                <field name="employee_ids" widget="many2many_tags" options="{'no_create': True}" invisible="is_all_employees"/>
+                                <field name="report_date"/>
+                            </group>
+                        </group>
+                        
+                        <notebook>
+                            <page string="Thông tin đơn vị" name="organization_info">
+                                <group>
+                                    <group>
+                                        <field name="organization_code"/>
+                                        <field name="organization_name" required="1"/>
+                                        <field name="organization_address"/>
+                                    </group>
+                                    <group>
+                                        <field name="organization_phone"/>
+                                        <field name="organization_email"/>
+                                    </group>
+                                </group>
+                            </page>
+                            
+                            <page string="Thông tin nộp BHXH" name="payment_info">
+                                <group>
+                                    <group>
+                                        <field name="payment_method"/>
+                                    </group>
+                                    <group invisible="payment_method != 'bank'">
+                                        <field name="bank_account" invisible="payment_method != 'bank'"/>
+                                        <field name="bank_name" invisible="payment_method != 'bank'"/>
+                                    </group>
+                                </group>
+                            </page>
+                            
+                            <page string="Thông tin người ký báo cáo" name="signature_info">
+                                <group>
+                                    <group>
+                                        <field name="reporter_name"/>
+                                        <field name="reporter_position"/>
+                                    </group>
+                                    <group>
+                                        <field name="signer_name"/>
+                                        <field name="signer_position"/>
+                                    </group>
+                                </group>
+                            </page>
+                            
+                            <page string="Kết quả" name="result" invisible="state == 'draft'">
+                                <group>
+                                    <field name="file_name" readonly="1" invisible="state != 'generated'"/>
+                                    <field name="generated_file" filename="file_name" readonly="1" invisible="state != 'generated'"/>
+                                    <field name="error_message" readonly="1" invisible="state != 'error'"/>
+                                </group>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+        
+        <!-- Tree View -->
+        <record id="view_vn_payroll_report_d01_ts_tree" model="ir.ui.view">
+            <field name="name">vn.payroll.report.d01.ts.tree</field>
+            <field name="model">vn.payroll.report.d01.ts</field>
+            <field name="arch" type="xml">
+                <list string="Báo cáo BHXH mẫu D01-TS">
+                    <field name="name"/>
+                    <field name="company_id"/>
+                    <field name="date_from"/>
+                    <field name="date_to"/>
+                    <field name="organization_code"/>
+                    <field name="state"/>
+                    <field name="create_date"/>
+                </list>
+            </field>
+        </record>
+        
+        <!-- Search View -->
+        <record id="view_vn_payroll_report_d01_ts_search" model="ir.ui.view">
+            <field name="name">vn.payroll.report.d01.ts.search</field>
+            <field name="model">vn.payroll.report.d01.ts</field>
+            <field name="arch" type="xml">
+                <search string="Tìm kiếm báo cáo">
+                    <field name="name"/>
+                    <field name="organization_code"/>
+                    <field name="date_from"/>
+                    <field name="date_to"/>
+                    <separator/>
+                    <filter string="Đã tạo" name="generated" domain="[('state', '=', 'generated')]"/>
+                    <filter string="Lỗi" name="error" domain="[('state', '=', 'error')]"/>
+                    <filter string="Bản nháp" name="draft" domain="[('state', '=', 'draft')]"/>
+                    <group expand="0" string="Group By">
+                        <filter string="Trạng thái" name="group_by_state" domain="[]" context="{'group_by': 'state'}"/>
+                        <filter string="Công ty" name="group_by_company" domain="[]" context="{'group_by': 'company_id'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+        
+        <!-- Action -->
+        <record id="action_vn_payroll_report_d01_ts" model="ir.actions.act_window">
+            <field name="name">Báo cáo BHXH mẫu D01-TS</field>
+            <field name="res_model">vn.payroll.report.d01.ts</field>
+            <field name="view_mode">tree,form</field>
+            <field name="search_view_id" ref="view_vn_payroll_report_d01_ts_search"/>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Tạo báo cáo BHXH mẫu D01-TS
+                </p>
+                <p>
+                    Mẫu D01-TS dùng để lập danh sách người lao động tham gia BHXH, BHYT theo quy định mới.
+                </p>
+            </field>
+        </record>
+        
+        <!-- Menu Item -->
+        <menuitem id="menu_vn_payroll_report_d01_ts"
+                  name="Báo cáo BHXH mẫu D01-TS"
+                  parent="hr_payroll_community.menu_hr_payroll_report"
+                  action="action_vn_payroll_report_d01_ts"
+                  sequence="105"/>
+    </data>
+</odoo> 

@@ -13,7 +13,15 @@
                         type="action"
                         groups="hr_payroll_community.group_hr_payroll_community_user">
                     <field name="payslip_count" widget="statinfo"
-                           string="Payslips"/>
+                           string="Phiếu lương"/>
+                </button>
+                <button name="%(action_create_payslip_for_employee)d"
+                        class="oe_stat_button"
+                        icon="fa-plus-circle"
+                        type="action"
+                        groups="hr_payroll_community.group_hr_payroll_community_user">
+                    <field name="payslip_count" widget="statinfo"
+                           string="Tạo phiếu lương mới"/>
                 </button>
             </xpath>
         </field>

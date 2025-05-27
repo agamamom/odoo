@@ -59,3 +59,5 @@ class HrPayslipInput(models.Model):
                                   required=True,
                                   help="The contract for which applied"
                                        " this input")
+    advance_create_date = fields.Datetime(string='Ngày tạo ứng lương')
+    advance_approve_date = fields.Datetime(string='Ngày duyệt ứng lương')

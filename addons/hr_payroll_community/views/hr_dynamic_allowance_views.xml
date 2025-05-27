@@ -1,0 +1,70 @@
+<odoo>
+    <record id="view_hr_dynamic_allowance_list" model="ir.ui.view">
+        <field name="name">hr.dynamic.allowance.list</field>
+        <field name="model">hr.dynamic.allowance</field>
+        <field name="arch" type="xml">
+            <list string="Phụ cấp động">
+                <field name="name" string="Tên phụ cấp"/>
+                <field name="employee_id" string="Nhân viên"/>
+                <field name="contract_id" string="Hợp đồng"/>
+                <field name="allowance_type" string="Loại phụ cấp"/>
+                <field name="amount" string="Số tiền"/>
+                <field name="start_date" string="Từ ngày"/>
+                <field name="end_date" string="Đến ngày"/>
+                <field name="state" string="Trạng thái"/>
+                <field name="company_id" string="Công ty"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_hr_dynamic_allowance_form" model="ir.ui.view">
+        <field name="name">hr.dynamic.allowance.form</field>
+        <field name="model">hr.dynamic.allowance</field>
+        <field name="arch" type="xml">
+            <form string="Phụ cấp động">
+                <sheet>
+                    <group>
+                        <field name="name" string="Tên phụ cấp"/>
+                        <field name="employee_id" string="Nhân viên"/>
+                        <field name="contract_id" string="Hợp đồng"/>
+                        <field name="allowance_type" string="Loại phụ cấp"/>
+                        <field name="amount" string="Số tiền"/>
+                        <field name="start_date" string="Từ ngày"/>
+                        <field name="end_date" string="Đến ngày"/>
+                        <field name="state" string="Trạng thái"/>
+                        <field name="note" string="Ghi chú"/>
+                        <field name="company_id" string="Công ty"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_hr_dynamic_allowance_search" model="ir.ui.view">
+        <field name="name">hr.dynamic.allowance.search</field>
+        <field name="model">hr.dynamic.allowance</field>
+        <field name="arch" type="xml">
+            <search string="Tìm kiếm phụ cấp động">
+                <field name="name" string="Tên phụ cấp"/>
+                <field name="employee_id" string="Nhân viên"/>
+                <field name="allowance_type" string="Loại phụ cấp"/>
+                <field name="state" string="Trạng thái"/>
+                <group expand="0" string="Nhóm theo">
+                    <filter string="Nhân viên" name="group_by_employee" context="{'group_by': 'employee_id'}"/>
+                    <filter string="Loại phụ cấp" name="group_by_type" context="{'group_by': 'allowance_type'}"/>
+                    <filter string="Trạng thái" name="group_by_state" context="{'group_by': 'state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_hr_dynamic_allowance" model="ir.actions.act_window">
+        <field name="name">Phụ cấp động</field>
+        <field name="res_model">hr.dynamic.allowance</field>
+        <field name="view_mode">list,form,kanban</field>
+        <field name="search_view_id" ref="view_hr_dynamic_allowance_search"/>
+    </record>
+
+    <menuitem id="menu_hr_dynamic_allowance_root" name="Phụ cấp động" parent="hr_payroll_community.menu_hr_payroll_community_root" sequence="80"/>
+    <menuitem id="menu_hr_dynamic_allowance" name="Phụ cấp động" parent="menu_hr_dynamic_allowance_root" action="action_hr_dynamic_allowance" sequence="10"/>
+</odoo> 

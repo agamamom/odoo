@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Báo cáo lương Việt Nam Form View -->
+        <record id="view_vn_payroll_report_form" model="ir.ui.view">
+            <field name="name">vn.payroll.report.form</field>
+            <field name="model">vn.payroll.report</field>
+            <field name="arch" type="xml">
+                <form string="Báo cáo lương Việt Nam">
+                    <header>
+                        <button name="action_generate_report" string="Tạo báo cáo" type="object" class="oe_highlight" states="draft"/>
+                        <button name="action_download_report" string="Tải xuống" type="object" class="oe_highlight" states="generated"/>
+                        <field name="state" widget="statusbar" statusbar_visible="draft,generated,error"/>
+                    </header>
+                    <sheet>
+                        <div class="oe_title">
+                            <h1>
+                                <field name="name" placeholder="Tên báo cáo"/>
+                            </h1>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="company_id" options="{'no_create': True}" required="1"/>
+                                <field name="date_from"/>
+                                <field name="date_to"/>
+                                <field name="report_type"/>
+                            </group>
+                            <group>
+                                <field name="department_id" options="{'no_create': True}"/>
+                                <field name="is_all_employees"/>
+                                <field name="employee_ids" widget="many2many_tags" options="{'no_create': True}" attrs="{'invisible': [('is_all_employees', '=', True)]}"/>
+                                <field name="report_date"/>
+                            </group>
+                        </group>
+                        
+                        <notebook>
+                            <page string="Thông tin người ký báo cáo" name="signature_info">
+                                <group>
+                                    <group>
+                                        <field name="reporter_name"/>
+                                        <field name="reporter_position"/>
+                                    </group>
+                                    <group>
+                                        <field name="signer_name"/>
+                                        <field name="signer_position"/>
+                                    </group>
+                                </group>
+                            </page>
+                            
+                            <page string="Thông tin BHXH" name="bhxh_info" attrs="{'invisible': [('report_type', 'not in', ['01_bhxh', '02_bhxh', '03_bhxh', '05_bhxh'])]}">
+                                <group>
+                                    <group>
+                                        <field name="bhxh_company_code"/>
+                                        <field name="bhxh_unit_code"/>
+                                    </group>
+                                    <group>
+                                        <field name="bhxh_province_code"/>
+                                    </group>
+                                </group>
+                            </page>
+                            
+                            <page string="Thông tin thuế" name="tax_info" attrs="{'invisible': [('report_type', 'not in', ['thue_tncn', 'thue_xml'])]}">
+                                <group>
+                                    <group>
+                                        <field name="tax_period"/>
+                                        <field name="tax_period_month" attrs="{'invisible': [('tax_period', '!=', 'month')], 'required': [('tax_period', '=', 'month')]}"/>
+                                        <field name="tax_period_quarter" attrs="{'invisible': [('tax_period', '!=', 'quarter')], 'required': [('tax_period', '=', 'quarter')]}"/>
+                                        <field name="tax_period_year" attrs="{'required': [('report_type', 'in', ['thue_tncn', 'thue_xml'])]}"/>
+                                    </group>
+                                    <group>
+                                        <field name="tax_declaration_number"/>
+                                        <field name="tax_authority"/>
+                                    </group>
+                                </group>
+                            </page>
+                            
+                            <page string="Kết quả" name="result" attrs="{'invisible': [('state', '=', 'draft')]}">
+                                <group>
+                                    <field name="file_name" readonly="1" attrs="{'invisible': [('state', '!=', 'generated')]}"/>
+                                    <field name="generated_file" filename="file_name" readonly="1" attrs="{'invisible': [('state', '!=', 'generated')]}"/>
+                                    <field name="error_message" readonly="1" attrs="{'invisible': [('state', '!=', 'error')]}"/>
+                                </group>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+        
+        <!-- Báo cáo lương Việt Nam Tree View -->
+        <record id="view_vn_payroll_report_tree" model="ir.ui.view">
+            <field name="name">vn.payroll.report.tree</field>
+            <field name="model">vn.payroll.report</field>
+            <field name="arch" type="xml">
+                <list string="Báo cáo lương Việt Nam">
+                    <field name="name"/>
+                    <field name="company_id"/>
+                    <field name="report_type"/>
+                    <field name="date_from"/>
+                    <field name="date_to"/>
+                    <field name="state"/>
+                    <field name="create_date"/>
+                </list>
+            </field>
+        </record>
+        
+        <!-- Báo cáo lương Việt Nam Search View -->
+        <record id="view_vn_payroll_report_search" model="ir.ui.view">
+            <field name="name">vn.payroll.report.search</field>
+            <field name="model">vn.payroll.report</field>
+            <field name="arch" type="xml">
+                <search string="Tìm kiếm báo cáo">
+                    <field name="name"/>
+                    <field name="report_type"/>
+                    <field name="date_from"/>
+                    <field name="date_to"/>
+                    <filter string="Báo cáo BHXH" name="bhxh_reports" domain="[('report_type', 'in', ['01_bhxh', '02_bhxh', '03_bhxh', '05_bhxh'])]"/>
+                    <filter string="Báo cáo thuế" name="tax_reports" domain="[('report_type', 'in', ['thue_tncn', 'thue_xml'])]"/>
+                    <filter string="Báo cáo lương" name="salary_reports" domain="[('report_type', 'in', ['thu_nhap', 'phu_cap', 'luong_mem'])]"/>
+                    <separator/>
+                    <filter string="Đã tạo" name="generated" domain="[('state', '=', 'generated')]"/>
+                    <filter string="Lỗi" name="error" domain="[('state', '=', 'error')]"/>
+                    <filter string="Bản nháp" name="draft" domain="[('state', '=', 'draft')]"/>
+                    <group expand="0" string="Group By">
+                        <filter string="Loại báo cáo" name="group_by_type" domain="[]" context="{'group_by': 'report_type'}"/>
+                        <filter string="Trạng thái" name="group_by_state" domain="[]" context="{'group_by': 'state'}"/>
+                        <filter string="Công ty" name="group_by_company" domain="[]" context="{'group_by': 'company_id'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+        
+        <!-- Báo cáo lương Việt Nam Action -->
+        <record id="action_vn_payroll_report" model="ir.actions.act_window">
+            <field name="name">Báo cáo lương Việt Nam</field>
+            <field name="res_model">vn.payroll.report</field>
+            <field name="view_mode">tree,form</field>
+            <field name="search_view_id" ref="view_vn_payroll_report_search"/>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Tạo báo cáo lương theo mẫu biểu của Việt Nam
+                </p>
+                <p>
+                    Hỗ trợ các báo cáo: Tổng hợp thu nhập, Báo cáo BHXH, Báo cáo thuế TNCN và nhiều loại báo cáo khác.
+                </p>
+            </field>
+        </record>
+        
+        <!-- Menu Items -->
+        <menuitem id="menu_vn_payroll_report"
+                  name="Báo cáo lương Việt Nam"
+                  parent="hr_payroll_community.menu_hr_payroll_community_report"
+                  action="action_vn_payroll_report"
+                  sequence="100"/>
+    </data>
+</odoo> 

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Báo cáo thuế TNCN Việt Nam -->
+    <record id="view_hr_payroll_report_tax_vietnam_form" model="ir.ui.view">
+        <field name="name">hr.payroll.report.tax.vietnam.form</field>
+        <field name="model">hr.payroll.report.tax.vietnam</field>
+        <field name="arch" type="xml">
+            <form string="Báo cáo thuế TNCN Việt Nam">
+                <field name="state" invisible="1"/>
+                
+                <div states="choose">
+                    <group>
+                        <group>
+                            <field name="company_id" options="{'no_create': True}"/>
+                            <field name="department_id" options="{'no_create': True}"/>
+                            <field name="report_type"/>
+                        </group>
+                        <group>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                            <field name="employee_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                        </group>
+                    </group>
+                    <footer>
+                        <button name="action_generate_report" string="Tạo báo cáo" type="object" class="btn-primary"/>
+                        <button string="Hủy" class="btn-secondary" special="cancel"/>
+                    </footer>
+                </div>
+                
+                <div states="get">
+                    <div class="alert alert-info" role="alert">
+                        <h4>Báo cáo đã được tạo!</h4>
+                        <p>Nhấn vào nút bên dưới để tải về file báo cáo</p>
+                    </div>
+                    <field name="file_data" readonly="1" filename="file_name"/>
+                    <field name="file_name" invisible="1"/>
+                    <footer>
+                        <button name="action_generate_report" string="Tạo lại báo cáo" type="object" class="btn-primary"/>
+                        <button string="Đóng" class="btn-secondary" special="cancel"/>
+                    </footer>
+                </div>
+            </form>
+        </field>
+    </record>
+    
+    <!-- Menu Action -->
+    <record id="action_hr_payroll_report_tax_vietnam" model="ir.actions.act_window">
+        <field name="name">Báo cáo thuế TNCN</field>
+        <field name="res_model">hr.payroll.report.tax.vietnam</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+    
+    <!-- Menu Item -->
+    <menuitem id="menu_hr_payroll_report_tax_vietnam" 
+        name="Báo cáo thuế TNCN Việt Nam"
+        parent="hr_payroll_community.menu_hr_payroll_report"
+        sequence="30"
+        action="action_hr_payroll_report_tax_vietnam"
+    />
+</odoo> 

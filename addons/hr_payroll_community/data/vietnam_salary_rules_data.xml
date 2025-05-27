@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Vietnam Minimum Wage Data -->
+    <record id="vietnam_min_wage_region_1" model="vietnam.minimum.wage">
+        <field name="name">Vùng I</field>
+        <field name="amount">4680000</field>
+        <field name="effective_date">2023-07-01</field>
+        <field name="region_code">1</field>
+    </record>
+    
+    <record id="vietnam_min_wage_region_2" model="vietnam.minimum.wage">
+        <field name="name">Vùng II</field>
+        <field name="amount">4160000</field>
+        <field name="effective_date">2023-07-01</field>
+        <field name="region_code">2</field>
+    </record>
+    
+    <record id="vietnam_min_wage_region_3" model="vietnam.minimum.wage">
+        <field name="name">Vùng III</field>
+        <field name="amount">3640000</field>
+        <field name="effective_date">2023-07-01</field>
+        <field name="region_code">3</field>
+    </record>
+    
+    <record id="vietnam_min_wage_region_4" model="vietnam.minimum.wage">
+        <field name="name">Vùng IV</field>
+        <field name="amount">3250000</field>
+        <field name="effective_date">2023-07-01</field>
+        <field name="region_code">4</field>
+    </record>
+    
+    <!-- Vietnam Basic Wage -->
+    <record id="vietnam_basic_wage" model="vietnam.basic.wage">
+        <field name="name">Lương cơ sở</field>
+        <field name="amount">1800000</field>
+        <field name="effective_date">2023-07-01</field>
+    </record>
+    
+    <!-- Vietnam Tax Brackets -->
+    <record id="vietnam_tax_bracket_1" model="vietnam.tax.bracket">
+        <field name="name">Bậc 1</field>
+        <field name="min_amount">0</field>
+        <field name="max_amount">5000000</field>
+        <field name="rate">5</field>
+        <field name="effective_date">2023-01-01</field>
+    </record>
+    
+    <record id="vietnam_tax_bracket_2" model="vietnam.tax.bracket">
+        <field name="name">Bậc 2</field>
+        <field name="min_amount">5000000</field>
+        <field name="max_amount">10000000</field>
+        <field name="rate">10</field>
+        <field name="effective_date">2023-01-01</field>
+    </record>
+    
+    <record id="vietnam_tax_bracket_3" model="vietnam.tax.bracket">
+        <field name="name">Bậc 3</field>
+        <field name="min_amount">10000000</field>
+        <field name="max_amount">18000000</field>
+        <field name="rate">15</field>
+        <field name="effective_date">2023-01-01</field>
+    </record>
+    
+    <record id="vietnam_tax_bracket_4" model="vietnam.tax.bracket">
+        <field name="name">Bậc 4</field>
+        <field name="min_amount">18000000</field>
+        <field name="max_amount">32000000</field>
+        <field name="rate">20</field>
+        <field name="effective_date">2023-01-01</field>
+    </record>
+    
+    <record id="vietnam_tax_bracket_5" model="vietnam.tax.bracket">
+        <field name="name">Bậc 5</field>
+        <field name="min_amount">32000000</field>
+        <field name="max_amount">52000000</field>
+        <field name="rate">25</field>
+        <field name="effective_date">2023-01-01</field>
+    </record>
+    
+    <record id="vietnam_tax_bracket_6" model="vietnam.tax.bracket">
+        <field name="name">Bậc 6</field>
+        <field name="min_amount">52000000</field>
+        <field name="max_amount">80000000</field>
+        <field name="rate">30</field>
+        <field name="effective_date">2023-01-01</field>
+    </record>
+    
+    <record id="vietnam_tax_bracket_7" model="vietnam.tax.bracket">
+        <field name="name">Bậc 7</field>
+        <field name="min_amount">80000000</field>
+        <field name="max_amount">999999999999</field>
+        <field name="rate">35</field>
+        <field name="effective_date">2023-01-01</field>
+    </record>
+    
+    <!-- Vietnam Tax Deductions -->
+    <record id="vietnam_tax_deduction_personal" model="vietnam.tax.deduction">
+        <field name="name">Giảm trừ bản thân</field>
+        <field name="amount">11000000</field>
+        <field name="deduction_type">personal</field>
+        <field name="effective_date">2023-01-01</field>
+    </record>
+    
+    <record id="vietnam_tax_deduction_dependent" model="vietnam.tax.deduction">
+        <field name="name">Giảm trừ người phụ thuộc</field>
+        <field name="amount">4400000</field>
+        <field name="deduction_type">dependent</field>
+        <field name="effective_date">2023-01-01</field>
+    </record>
+    
+    <!-- Vietnam Insurance Rates -->
+    <record id="vietnam_insurance_si_employee" model="vietnam.insurance.rate">
+        <field name="name">BHXH - Người lao động</field>
+        <field name="rate">8.0</field>
+        <field name="insurance_type">si</field>
+        <field name="party_type">employee</field>
+        <field name="effective_date">2023-01-01</field>
+    </record>
+    
+    <record id="vietnam_insurance_hi_employee" model="vietnam.insurance.rate">
+        <field name="name">BHYT - Người lao động</field>
+        <field name="rate">1.5</field>
+        <field name="insurance_type">hi</field>
+        <field name="party_type">employee</field>
+        <field name="effective_date">2023-01-01</field>
+    </record>
+    
+    <record id="vietnam_insurance_ui_employee" model="vietnam.insurance.rate">
+        <field name="name">BHTN - Người lao động</field>
+        <field name="rate">1.0</field>
+        <field name="insurance_type">ui</field>
+        <field name="party_type">employee</field>
+        <field name="effective_date">2023-01-01</field>
+    </record>
+    
+    <record id="vietnam_insurance_si_employer" model="vietnam.insurance.rate">
+        <field name="name">BHXH - Công ty</field>
+        <field name="rate">17.5</field>
+        <field name="insurance_type">si</field>
+        <field name="party_type">employer</field>
+        <field name="effective_date">2023-01-01</field>
+    </record>
+    
+    <record id="vietnam_insurance_hi_employer" model="vietnam.insurance.rate">
+        <field name="name">BHYT - Công ty</field>
+        <field name="rate">3.0</field>
+        <field name="insurance_type">hi</field>
+        <field name="party_type">employer</field>
+        <field name="effective_date">2023-01-01</field>
+    </record>
+    
+    <record id="vietnam_insurance_ui_employer" model="vietnam.insurance.rate">
+        <field name="name">BHTN - Công ty</field>
+        <field name="rate">1.0</field>
+        <field name="insurance_type">ui</field>
+        <field name="party_type">employer</field>
+        <field name="effective_date">2023-01-01</field>
+    </record>
+</odoo> 

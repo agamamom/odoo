@@ -8,6 +8,8 @@ cd C:\sbot\Odoo\odoo
 
 python odoo-bin -c C:\sbot\Odoo\odoo\odoo.conf
 
+khởi động Chrok để có domain free: C:\ngrok\ngrok.exe http 8070
+
 Khởi động lại Odoo server: odoo-bin -c C:\sbot\Odoo\odoo\odoo.conf -u custom_api.
 
 Lệnh update Odoo khi thêm Model mới: python odoo-bin -c C:\sbot\Odoo\odoo\odoo.conf -u hr_rest_api

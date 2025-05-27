@@ -20,9 +20,10 @@
 #    If not, see <http://www.gnu.org/licenses/>.
 #
 #############################################################################
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta
-from odoo import fields, models
+from odoo import fields, models, api, _
+from odoo.exceptions import UserError
 
 
 class HrPayslipRun(models.Model):
@@ -63,3 +64,48 @@ class HrPayslipRun(models.Model):
     def close_payslip_run(self):
         """Function for state change"""
         return self.write({'state': 'close'})
+
+    def action_generate_all_payslips(self):
+        """Tự động tạo phiếu lương cho tất cả nhân viên có hợp đồng active trong kỳ lương."""
+        employees = self.env['hr.employee'].search([
+            ('contract_id.state', '=', 'open'),
+            ('company_id', '=', self.env.company.id)
+        ])
+        if not employees:
+            raise UserError(_('Không có nhân viên nào có hợp đồng active trong công ty hiện tại!'))
+        payslips = self.env['hr.payslip']
+        for employee in employees:
+            slip_data = self.env['hr.payslip'].onchange_employee_id(
+                self.date_start, self.date_end, employee.id, contract_id=False)
+            res = {
+                'employee_id': employee.id,
+                'name': slip_data['value'].get('name'),
+                'struct_id': slip_data['value'].get('struct_id'),
+                'contract_id': slip_data['value'].get('contract_id'),
+                'payslip_run_id': self.id,
+                'input_line_ids': [(0, 0, x) for x in slip_data['value'].get('input_line_ids')],
+                'worked_days_line_ids': [(0, 0, x) for x in slip_data['value'].get('worked_days_line_ids')],
+                'date_from': self.date_start,
+                'date_to': self.date_end,
+                'credit_note': self.credit_note,
+                'company_id': employee.company_id.id,
+            }
+            payslips += self.env['hr.payslip'].create(res)
+        payslips.action_compute_sheet()
+        return True
+
+    @api.model
+    def _cron_auto_generate_payslip_run(self):
+        today = fields.Date.today()
+        # Chỉ chạy vào ngày 25 hàng tháng
+        if today.day != 25:
+            return
+        # Tìm kỳ lương tháng này
+        date_start = today.replace(day=1)
+        date_end = (date_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+        run = self.create({
+            'name': _('Payslip Run %s/%s') % (today.month, today.year),
+            'date_start': date_start,
+            'date_end': date_end,
+        })
+        run.action_generate_all_payslips()

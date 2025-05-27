@@ -24,6 +24,11 @@
             <field name="users"
                    eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
         </record>
+        <record id="group_hr_payroll_community_base_user" model="res.groups">
+            <field name="name">User</field>
+            <field name="category_id" ref="hr_payroll_community.module_category_hr_payroll_community"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        </record>
         <record id="base.default_user" model="res.users">
             <field name="groups_id"
                    eval="[(4,ref('hr_payroll_community.group_hr_payroll_community_manager'))]"/>
@@ -53,5 +58,15 @@
                 ('company_id', 'in', company_ids)]
             </field>
         </record>
+        <record id="hr_payroll_rule_base_user" model="ir.rule">
+            <field name="name">Payslip: User can only see their own</field>
+            <field name="model_id" ref="model_hr_payslip"/>
+            <field name="domain_force">[('employee_id.user_id', '=', user.id)]</field>
+            <field name="groups" eval="[(4, ref('hr_payroll_community.group_hr_payroll_community_base_user'))]"/>
+        </record>
+        <menuitem action="hr_payslip_action"
+                  id="menu_department_tree"
+                  parent="menu_hr_payroll_community_root"
+                  groups="hr_payroll_community.group_hr_payroll_community_user,hr_payroll_community.group_hr_payroll_community_base_user"/>
     </data>
 </odoo>

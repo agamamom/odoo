@@ -135,20 +135,30 @@ class RequestHandler(werkzeug.serving.WSGIRequestHandler):
         # Add the TCP socket to environ in order for the websocket
         # connections to use it.
         environ['socket'] = self.connection
-        if self.headers.get('Upgrade') == 'websocket':
-            # Since the upgrade header is introduced in version 1.1, Firefox
-            # won't accept a websocket connection if the version is set to
-            # 1.0.
-            self.protocol_version = "HTTP/1.1"
+        try:
+            if hasattr(self, 'headers') and self.headers and self.headers.get('Upgrade') == 'websocket':
+                # Since the upgrade header is introduced in version 1.1, Firefox
+                # won't accept a websocket connection if the version is set to
+                # 1.0.
+                self.protocol_version = "HTTP/1.1"
+        except (AttributeError, TypeError):
+            # If we can't access headers (e.g., in newer Werkzeug versions)
+            # just continue with the default behavior
+            pass
         return environ
 
     def send_header(self, keyword, value):
         # Prevent `WSGIRequestHandler` from sending the connection close header (compatibility with werkzeug >= 2.1.1 )
         # since it is incompatible with websocket.
-        if self.headers.get('Upgrade') == 'websocket' and keyword == 'Connection' and value == 'close':
-            # Do not keep processing requests.
-            self.close_connection = True
-            return
+        try:
+            if hasattr(self, 'headers') and self.headers and self.headers.get('Upgrade') == 'websocket' and keyword == 'Connection' and value == 'close':
+                # Do not keep processing requests.
+                self.close_connection = True
+                return
+        except (AttributeError, TypeError):
+            # If we can't access headers (e.g., in newer Werkzeug versions)
+            # just continue with the default behavior
+            pass
         super().send_header(keyword, value)
 
     def end_headers(self, *a, **kw):
@@ -157,9 +167,14 @@ class RequestHandler(werkzeug.serving.WSGIRequestHandler):
         # data. In the case of WebSocket connections, data should not be discarded. Replace the
         # rfile/wfile of this handler to prevent any further action (compatibility with werkzeug >= 2.3.x).
         # See: https://github.com/pallets/werkzeug/blob/2.3.x/src/werkzeug/serving.py#L334
-        if self.headers.get('Upgrade') == 'websocket':
-            self.rfile = BytesIO()
-            self.wfile = BytesIO()
+        try:
+            if hasattr(self, 'headers') and self.headers and self.headers.get('Upgrade') == 'websocket':
+                self.rfile = BytesIO()
+                self.wfile = BytesIO()
+        except (AttributeError, TypeError):
+            # If we can't access headers (e.g., in newer Werkzeug versions)
+            # just continue with the default behavior
+            pass
 
     def log_error(self, format, *args):
         if format == "Request timed out: %r" and config['test_enable']:
