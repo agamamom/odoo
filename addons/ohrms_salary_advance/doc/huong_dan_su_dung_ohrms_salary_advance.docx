@@ -1,0 +1,73 @@
+HƯỚNG DẪN SỬ DỤNG MODULE TẠM ỨNG LƯƠNG NHÂN VIÊN (ohrms_salary_advance)
+
+Dành cho người mới, không biết công nghệ
+
+---
+
+1. Mở hệ thống Odoo
+- Bật máy tính, mở trình duyệt web (Chrome, Edge, Firefox...)
+- Gõ vào ô địa chỉ: http://localhost:8077 rồi bấm Enter
+
+2. Đăng nhập vào hệ thống
+- Nhập tên đăng nhập và mật khẩu được cấp
+- Bấm nút "Đăng nhập"
+
+3. Truy cập chức năng tạm ứng lương
+- Sau khi đăng nhập, tìm menu "Vay và Tạm ứng" hoặc "Advance" trên thanh menu
+- Bấm vào menu "Request Salary Advance" (Yêu cầu tạm ứng lương)
+
+4. Tạo yêu cầu tạm ứng lương mới
+- Bấm nút "Tạo" (Create) ở góc trên bên trái
+- Nhập các thông tin:
+  + Nhân viên (Employee): Chọn tên của bạn hoặc nhân viên cần ứng lương
+  + Ngày (Date): Chọn ngày gửi yêu cầu
+  + Số tiền tạm ứng (Advance): Nhập số tiền muốn ứng
+  + Lý do (Reason): Ghi rõ lý do cần tạm ứng
+  + Đính kèm file (Attachments): Tải lên giấy tờ minh chứng nếu có
+- Kiểm tra lại thông tin, bấm "Lưu" (Save)
+
+5. Gửi yêu cầu tạm ứng lương để phê duyệt
+- Sau khi lưu, bấm nút "Submit" (Nộp)
+- Yêu cầu sẽ chuyển sang trạng thái "Đã nộp" (Submitted)
+- Hệ thống sẽ tự động chuyển yêu cầu đến người phê duyệt cấp 1 (thường là quản lý/phòng nhân sự)
+
+6. Theo dõi quy trình phê duyệt
+- Yêu cầu sẽ lần lượt được phê duyệt qua các cấp (quản lý, kế toán, giám đốc...)
+- Bạn có thể xem lịch sử phê duyệt, ghi chú, thời gian từng cấp trong tab "Approval History"
+- Nếu bị từ chối, bạn sẽ nhận được thông báo và lý do
+
+7. Kiểm tra hạn mức tạm ứng
+- Hệ thống sẽ tự động kiểm tra hạn mức tạm ứng theo quy định công ty
+- Nếu vượt hạn mức, sẽ có cảnh báo và không thể gửi yêu cầu
+- Hạn mức có thể theo phần trăm lương, số tiền cố định, hoặc theo phòng ban/công ty
+
+8. Phê duyệt và kế toán xử lý
+- Người phê duyệt sẽ nhận thông báo, vào menu "To Approve" để xem và duyệt yêu cầu
+- Sau khi phê duyệt cuối cùng, hệ thống sẽ tự động tạo bút toán kế toán, ghi nhận khoản tạm ứng
+- Kế toán có thể chọn tài khoản ghi nợ, ghi có, sổ nhật ký phù hợp
+
+9. Khấu trừ tạm ứng vào bảng lương
+- Khi chạy bảng lương, hệ thống sẽ tự động khấu trừ khoản tạm ứng đã được duyệt
+- Trạng thái "Đã khấu trừ" sẽ được cập nhật trên yêu cầu
+
+10. Xem báo cáo và thống kê
+- Vào menu "Advance" hoặc "Báo cáo tạm ứng lương" để xem tổng quan các yêu cầu
+- Có thể lọc, nhóm theo trạng thái, nhân viên, phòng ban, tháng...
+- Xem số tiền đã ứng, đã khấu trừ, còn lại
+
+11. Một số lưu ý quan trọng
+- Nhân viên chỉ xem và tạo yêu cầu cho chính mình
+- Quản lý HR duyệt cấp đầu, kế toán duyệt cấp cuối
+- Không thể gửi yêu cầu vượt hạn mức hoặc thiếu thông tin
+- Khi gặp lỗi, nên chụp ảnh màn hình và gửi cho bộ phận IT hỗ trợ
+
+12. Giải thích một số khái niệm đơn giản
+- Tạm ứng lương (Salary Advance): Ứng trước một phần lương trước kỳ trả lương
+- Hạn mức tạm ứng: Số tiền tối đa được phép ứng
+- Phê duyệt nhiều cấp: Yêu cầu phải được nhiều người duyệt theo thứ tự
+- Khấu trừ: Trừ khoản tạm ứng vào lương tháng sau
+- Đính kèm: File minh chứng, giấy tờ liên quan
+
+---
+
+Kết thúc hướng dẫn. Nếu có thắc mắc, hãy liên hệ người phụ trách hoặc bộ phận IT để được hỗ trợ. 

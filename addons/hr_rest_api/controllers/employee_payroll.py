@@ -1,4 +1,4 @@
-from odoo import http
+from odoo import http, fields
 from odoo.http import request, Response
 from odoo.addons.hr_rest_api.controllers.main import HrRestApiController
 import json

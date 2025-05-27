@@ -20,7 +20,7 @@
 #    If not, see <http://www.gnu.org/licenses/>.
 #
 #############################################################################
-from odoo import models
+from odoo import models, _
 
 
 class HrPayslip(models.Model):
@@ -36,17 +36,29 @@ class HrPayslip(models.Model):
         employee_id = self.env['hr.contract'].browse(
             contract_ids[0].id).employee_id if contract_ids \
             else self.employee_id
-        advance_salary = self.env['salary.advance'].search(
-            [('employee_id', '=', employee_id.id)])
-        for record in advance_salary:
-            current_date = date_from.month
-            date = record.date
-            existing_date = date.month
-            if current_date == existing_date:
-                state = record.state
-                amount = record.advance
-                for result in res:
-                    if state == 'approve' and amount != 0 and result.get(
-                            'code') == 'SAR':
-                        result['amount'] = amount
+        # Lấy các khoản tạm ứng đã duyệt, chưa trừ, trong tháng này
+        advances = self.env['salary.advance'].search([
+            ('employee_id', '=', employee_id.id),
+            ('state', '=', 'approve'),
+            ('is_deducted', '=', False),
+            ('date', '>=', date_from),
+            ('date', '<=', date_to),
+        ])
+        total_advance = sum(a.advance for a in advances)
+        for result in res:
+            if result.get('code') == 'SAR':
+                result['amount'] = -total_advance  # Trừ vào lương
+        return res
+
+    def action_payslip_done(self):
+        res = super().action_payslip_done()
+        for slip in self:
+            advances = self.env['salary.advance'].search([
+                ('employee_id', '=', slip.employee_id.id),
+                ('state', '=', 'approve'),
+                ('is_deducted', '=', False),
+                ('date', '>=', slip.date_from),
+                ('date', '<=', slip.date_to),
+            ])
+            advances.write({'is_deducted': True})
         return res

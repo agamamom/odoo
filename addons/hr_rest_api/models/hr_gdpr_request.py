@@ -4,6 +4,27 @@ import logging
 
 _logger = logging.getLogger(__name__)
 
+class HrPayrollDataProtection(models.Model):
+    _name = 'hr.payroll.data.protection'
+    _description = 'Payroll Data Protection Settings'
+    _inherit = ['mail.thread']
+    
+    name = fields.Char(string='Name', required=True, default=lambda self: self.company_id.name + ' Data Protection')
+    company_id = fields.Many2one('res.company', string='Company', required=True, default=lambda self: self.env.company)
+    active = fields.Boolean(string='Active', default=True)
+    
+    # Data Protection Officer
+    data_officer_id = fields.Many2one('res.users', string='Data Protection Officer', 
+                                     tracking=True, required=True)
+    
+    # GDPR Settings
+    enable_data_subject_requests = fields.Boolean(string='Enable Data Subject Requests', default=True,
+                                                 help='Allow employees to submit GDPR-related requests')
+    data_retention_period = fields.Integer(string='Data Retention Period (months)', default=24,
+                                         help='Period after which personal data should be anonymized')
+    auto_anonymize = fields.Boolean(string='Auto-Anonymize Old Data', default=False,
+                                   help='Automatically anonymize data after retention period')
+
 class HrGdprRequest(models.Model):
     _name = 'hr.gdpr.request'
     _description = 'GDPR Data Subject Request'

@@ -19,13 +19,15 @@
         'base',
         'hr_insurance',
         'hr_payroll_community',
-        'hr_contract'
+        'hr_contract',
+        'mail'
     ],
     'data': [
         'security/ir.model.access.csv',
         'data/ir_sequence_data.xml',
         'views/res_users_views.xml',
         'views/hr_gdpr_request_views.xml',
+        'views/hr_data_protection_views.xml',
     ],
     'installable': True,
     'application': False,

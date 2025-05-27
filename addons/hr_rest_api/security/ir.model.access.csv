@@ -3,3 +3,5 @@ access_hr_gdpr_request_user,hr.gdpr.request.user,model_hr_gdpr_request,base.grou
 access_hr_gdpr_request_hr_user,hr.gdpr.request.hr.user,model_hr_gdpr_request,hr.group_hr_user,1,1,1,0
 access_hr_gdpr_request_hr_manager,hr.gdpr.request.hr.manager,model_hr_gdpr_request,hr.group_hr_manager,1,1,1,1
 access_hr_gdpr_request_reject_wizard_hr_user,hr.gdpr.request.reject.wizard.hr.user,model_hr_gdpr_request_reject_wizard,hr.group_hr_user,1,1,1,0
+access_hr_payroll_data_protection_hr_user,hr.payroll.data.protection.hr.user,model_hr_payroll_data_protection,hr.group_hr_user,1,1,1,0
+access_hr_payroll_data_protection_hr_manager,hr.payroll.data.protection.hr.manager,model_hr_payroll_data_protection,hr.group_hr_manager,1,1,1,1
