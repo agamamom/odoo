@@ -1,35 +1,31 @@
+# -*- coding: utf-8 -*-
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+
 {
-    'name': "HR REST API",
-    'summary': "RESTful API for HR module including Payroll and Insurance management",
+    'name': 'HR REST API',
+    'version': '18.0.1.0.0',
+    'category': 'Human Resources',
+    'summary': 'REST API for HR module',
     'description': """
-        This module provides RESTful API endpoints for the HR module,
-        allowing external applications to access HR data through standard HTTP requests.
-        Includes payslip management, computation, validation, insurance management, and reporting features.
-        
-        Employee self-service features:
-        - View own payslips and download PDFs
-        - View payslip details and computation
-        - View salary structure
-        - GDPR compliance features (data access, correction, portability)
-    """,
-    'version': '1.0',
-    'category': 'Human Resources/API',
-    'depends': [
-        'hr', 
-        'base',
-        'hr_insurance',
-        'hr_payroll_community',
-        'hr_contract',
-        'mail'
-    ],
+HR REST API
+==========
+
+This module provides a RESTful API to access HR data.
+Features include:
+- User management API
+- Employee management API
+- Authentication with API keys
+- CORS support for cross-origin requests
+""",
+    'depends': ['hr', 'hr_attendance', 'hr_holidays'],
     'data': [
         'security/ir.model.access.csv',
-        'data/ir_sequence_data.xml',
-        'views/res_users_views.xml',
-        'views/hr_gdpr_request_views.xml',
-        'views/hr_data_protection_views.xml',
+        'views/menus.xml',
+    ],
+    'demo': [
     ],
     'installable': True,
     'application': False,
+    'auto_install': False,
     'license': 'LGPL-3',
 } 

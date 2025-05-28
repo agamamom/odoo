@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- REST API Configuration Menu -->
+    <menuitem id="menu_hr_rest_api_config"
+              name="REST API"
+              parent="hr.menu_human_resources_configuration"
+              sequence="100"
+              groups="hr.group_hr_manager,base.group_system"/>
+    
+    <!-- API Documentation Menu Item -->
+    <record id="action_hr_api_documentation" model="ir.actions.act_url">
+        <field name="name">API Documentation</field>
+        <field name="url">/hr_rest_api/static/description/index.html</field>
+        <field name="target">new</field>
+    </record>
+    
+    <menuitem id="menu_hr_api_documentation"
+              name="Documentation"
+              parent="menu_hr_rest_api_config"
+              action="action_hr_api_documentation"
+              sequence="20"
+              groups="hr.group_hr_manager,base.group_system"/>
+</odoo> 

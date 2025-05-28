@@ -90,7 +90,7 @@ class HrGdprRequest(models.Model):
     def create(self, vals):
         if vals.get('name', _('New')) == _('New'):
             vals['name'] = self.env['ir.sequence'].next_by_code('hr.gdpr.request') or _('New')
-        return super(HrGdprRequest, self).create(vals)
+        return super().create(vals)
     
     def action_assign_to_me(self):
         """Assign the GDPR request to the current user"""
@@ -143,7 +143,7 @@ class HrGdprRequest(models.Model):
                 body=_("Request status changed from %s to %s") % (old_state, new_state)
             )
             
-        return super(HrGdprRequest, self).write(vals)
+        return super().write(vals)
 
 
 class HrGdprRequestRejectWizard(models.TransientModel):

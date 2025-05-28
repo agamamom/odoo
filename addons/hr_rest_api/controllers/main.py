@@ -1,43 +1,106 @@
-from odoo import http
+from odoo import http, _
 from odoo.http import request, Response
 import json
-from werkzeug.exceptions import BadRequest, NotFound
+import logging
+from werkzeug.exceptions import BadRequest, Forbidden
+from werkzeug.wrappers import Response as WerkzeugResponse
+from datetime import datetime
 from odoo import fields
-import datetime
 import io
 from PIL import Image
 import base64
 
+_logger = logging.getLogger(__name__)
 
 class HrRestApiController(http.Controller):
     
     def _validate_api_key(self):
-        """Validate the API key from the request headers"""
-        api_key = request.httprequest.headers.get('API-Key')
-        if not api_key:
-            return False, {"error": "API Key is required in the header"}
+        """
+        Simplified API key validation method that uses HTTP Basic Auth instead.
+        Returns a tuple (is_valid, result) where:
+        - is_valid: boolean indicating if authentication is valid
+        - result: the user object if valid, error dict if not
+        """
+        # Get authentication from Basic Auth
+        auth_header = request.httprequest.headers.get('Authorization')
+        api_key = request.httprequest.headers.get('X-API-Key')
         
-        # Check if the API key is valid (in a real implementation, this should be stored securely)
-        user = request.env['res.users'].sudo().search([('api_key', '=', api_key)], limit=1)
-        if not user:
-            return False, {"error": "Invalid API Key"}
-        
-        return True, user
+        if auth_header and auth_header.startswith('Basic '):
+            # Handle Basic Auth
+            try:
+                auth_decoded = base64.b64decode(auth_header[6:]).decode('utf-8')
+                login, password = auth_decoded.split(':', 1)
+                
+                user = request.env['res.users'].sudo().search([('login', '=', login)], limit=1)
+                if user and request.env['res.users'].sudo()._verify_and_update_password(password, user.id):
+                    return True, user
+            except Exception as e:
+                _logger.warning("Error validating Basic Auth: %s", str(e))
+                return False, {"error": "Invalid authentication"}
+        elif api_key:
+            # For backward compatibility, check if API key matches a user token
+            # This is a simplified approach - in production you would want a more secure method
+            user = request.env['res.users'].sudo().search([('oauth_access_token', '=', api_key)], limit=1)
+            if user:
+                return True, user
+                
+        # If we got here, authentication failed
+        return False, {"error": "Invalid or missing authentication credentials"}
     
     def _add_cors_headers(self, response):
         """Add CORS headers to the response"""
-        # For development, use '*' to allow all origins; for production, specify exact origins
-        allowed_origins = ['http://localhost:5000']  # Replace with your Flutter app's origin
-        origin = request.httprequest.headers.get('Origin', '*')
-        response.headers.set('Access-Control-Allow-Origin', origin if origin in allowed_origins else '*')
-        response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-        response.headers.set('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, API-Key')
-        response.headers.set('Access-Control-Max-Age', '86400')  # 24 hours cache for preflight requests
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        response.headers.add('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, X-API-Key')
         return response
     
     def _handle_options_request(self):
-        """Handle OPTIONS preflight requests"""
-        response = Response(status=200)
+        """Handle OPTIONS requests for CORS preflight"""
+        response = request.make_response('', headers=[('Content-Type', 'text/plain')])
+        return self._add_cors_headers(response)
+    
+    @http.route('/api/ping', type='http', auth='public', methods=['GET'], csrf=False)
+    def ping(self, **kw):
+        """Simple ping endpoint to test if the API is running"""
+        result = {
+            "success": True,
+            "message": "Odoo HR REST API is running",
+            "timestamp": datetime.now().isoformat(),
+        }
+        response = request.make_response(json.dumps(result), 
+                                       headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+    
+    @http.route('/api/auth/verify', type='http', auth='public', methods=['GET'], csrf=False)
+    def verify_auth(self, **kw):
+        """Verify API key and return user information"""
+        # Validate API key
+        is_valid, result = self._validate_api_key()
+        
+        if not is_valid:
+            response = request.make_response(json.dumps(result), 
+                                           headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+        
+        # Extract user info
+        user = result
+        user_data = {
+            "id": user.id,
+            "name": user.name,
+            "login": user.login,
+            "is_admin": user.has_group('base.group_system'),
+            "is_hr_manager": user.has_group('hr.group_hr_manager'),
+            "is_hr_user": user.has_group('hr.group_hr_user'),
+        }
+        
+        result = {
+            "success": True,
+            "auth": "valid",
+            "user": user_data
+        }
+        
+        response = request.make_response(json.dumps(result), 
+                                       headers=[('Content-Type', 'application/json')])
         return self._add_cors_headers(response)
     
     def _handle_request(self, model, fields, domain=None, limit=100, offset=0, order=None):
@@ -1263,94 +1326,6 @@ class HrRestApiController(http.Controller):
         """Handle OPTIONS request for find_by_email endpoint"""
         return self._handle_options_request()
     
-
-    #API ROUTE cho phần nhận diện khuôn mặt để chấm công
-    @http.route('/api/hr/attendances/face_checkin', type='json', auth='public', methods=['POST'], csrf=False)
-    def face_checkin(self, **kw):
-        """
-        Check-in/out bằng khuôn mặt.
-        Body: {
-            "image_base64": "data:image/png;base64,..."
-        }
-        """
-        # Validate API key
-        is_valid, user = self._validate_api_key()
-        if not is_valid:
-            response = request.make_response(json.dumps(user), headers=[('Content-Type', 'application/json')])
-            return self._add_cors_headers(response)
-
-        try:
-            data = json.loads(request.httprequest.data.decode('utf-8'))
-        except Exception:
-            data = request.jsonrequest
-
-        image_base64 = data.get('image_base64')
-        if not image_base64:
-            result = {'success': False, 'error': 'Missing image_base64 in request body'}
-            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
-            return self._add_cors_headers(response)
-
-        # Giải mã ảnh gửi lên
-        if image_base64.startswith('data:image'):
-            image_base64 = image_base64.split('base64,')[1]
-        try:
-            upload_image = base64.b64decode(image_base64)
-        except Exception as e:
-            result = {'success': False, 'error': f'Invalid base64 image: {str(e)}'}
-            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
-            return self._add_cors_headers(response)
-
-        # Lấy tất cả nhân viên có ảnh khuôn mặt
-        employees = request.env['hr.employee'].sudo().search([('image_1920', '!=', False)])
-        matched_employee = None
-
-        def get_face_encoding(image_bytes):
-            # Đọc ảnh từ bytes, chuyển sang numpy array
-            img = np.array(Image.open(io.BytesIO(image_bytes)))
-            encodings = face_recognition.face_encodings(img)
-            if encodings:
-                return encodings[0]
-            return None
-
-        upload_encoding = get_face_encoding(upload_image)
-        if upload_encoding is None:
-            result = {'success': False, 'error': 'No face found in uploaded image'}
-            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
-            return self._add_cors_headers(response)
-
-        for employee in employees:
-            try:
-                face_image = base64.b64decode(employee.image_1920)
-                employee_encoding = get_face_encoding(face_image)
-                if employee_encoding is not None:
-                    # So sánh khuôn mặt (distance < 0.6 là trùng)
-                    matches = face_recognition.compare_faces([employee_encoding], upload_encoding, tolerance=0.6)
-                    if matches[0]:
-                        matched_employee = employee
-                        break
-            except Exception as e:
-                continue
-
-        if not matched_employee:
-            result = {'success': False, 'error': 'Face not recognized'}
-            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
-            return self._add_cors_headers(response)
-
-        # Tạo bản ghi chấm công (check-in hoặc check-out)
-        attendance = request.env['hr.attendance'].sudo().create({
-            'employee_id': matched_employee.id,
-            'check_in': fields.Datetime.now(),
-            # hoặc 'check_out': fields.Datetime.now() nếu là check-out
-        })
-
-        result = {'success': True, 'attendance_id': attendance.id, 'employee_id': matched_employee.id}
-        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
-        return self._add_cors_headers(response)
-
-    @http.route('/api/hr/attendances/face_checkin', type='http', auth='public', methods=['OPTIONS'], csrf=False)
-    def options_face_checkin(self, **kw):
-        """Handle OPTIONS request for face_checkin endpoint"""
-        return self._handle_options_request()
 
     @http.route('/api/hr/attendances/confirm', type='json', auth='public', methods=['POST'], csrf=False)
     def confirm_attendance(self, **kw):

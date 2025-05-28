@@ -1,4 +1,6 @@
 from . import main
+from . import user_management
+from . import employee_api
 from . import payslip
 from . import payroll_admin
 from . import insurance
