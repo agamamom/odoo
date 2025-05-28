@@ -758,23 +758,6 @@ class UserManagementAPI(HrRestApiController):
     # ========== PUBLIC USER REGISTRATION ==========
     @http.route('/api/public/register', type='json', auth='public', methods=['POST'], csrf=False)
     def public_user_registration(self, **kw):
-        """
-        Public endpoint to register a new user (self-service signup)
-        
-        Required params:
-        - name: User's full name
-        - login: User's email (used as login)
-        - password: Initial password
-        
-        Optional params:
-        - lang: Language code (e.g., 'en_US')
-        - tz: Timezone (e.g., 'Europe/Brussels')
-        - phone: Phone number
-        - mobile: Mobile number
-        - work_email: Work email (defaults to login if not provided)
-        - job_title: Job title
-        - department_id: Department ID
-        """
         # Validate required fields
         required_fields = ['name', 'login', 'password']
         for field in required_fields:
@@ -803,13 +786,28 @@ class UserManagementAPI(HrRestApiController):
             # Create user
             new_user = request.env['res.users'].sudo().create(user_values)
             
+            # Check for existing employee
+            existing_employee = request.env['hr.employee'].sudo().search([
+                ('user_id', '=', new_user.id),
+                ('company_id', '=', request.env.company.id)  # Use current company
+            ], limit=1)
+            
+            if existing_employee:
+                return {
+                    "success": False,
+                    "user_id": new_user.id,
+                    "error": f"Employee already exists for user {new_user.login} in company {request.env.company.name}"
+                }
+            
             # Prepare employee values
             employee_values = {
                 'name': kw['name'],
                 'user_id': new_user.id,
-                'work_email': kw.get('work_email', kw['login']),  # Default to login if not provided
+                'work_email': kw.get('work_email', kw['login']),
                 'work_phone': kw.get('phone', False),
                 'mobile_phone': kw.get('mobile', False),
+                'company_id': request.env.company.id,  # Explicitly set company_id
+                'image_1024': False,  # Prevent automatic image generation
             }
             
             # Add optional employee fields if provided
@@ -837,4 +835,4 @@ class UserManagementAPI(HrRestApiController):
             }
         except Exception as e:
             _logger.error("Error in public user registration: %s", str(e))
-            return {"error": f"Failed to register user: {str(e)}"} 
+            return {"error": f"Failed to register user: {str(e)}"}
