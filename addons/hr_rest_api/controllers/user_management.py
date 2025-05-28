@@ -24,7 +24,8 @@ class UserManagementAPI(HrRestApiController):
         '/api/users/check-email',
         '/api/users/bulk',
         '/api/users/activate/<int:user_id>',
-        '/api/users/deactivate/<int:user_id>'
+        '/api/users/deactivate/<int:user_id>',
+        '/api/public/register'
     ], type='http', auth='public', methods=['OPTIONS'], csrf=False)
     def options_user_endpoints(self, **kw):
         """Handle OPTIONS requests for CORS preflight"""
@@ -778,12 +779,25 @@ class UserManagementAPI(HrRestApiController):
                 }
                 partner = request.env['res.partner'].sudo().create(partner_values)
                 
+                # Determine company
+                company_id = request.env.company.id  # Default company
+                if 'company_id' in kw and kw['company_id']:
+                    try:
+                        selected_company_id = int(kw['company_id'])
+                        company = request.env['res.company'].sudo().browse(selected_company_id)
+                        if company.exists():
+                            company_id = selected_company_id
+                    except (ValueError, TypeError):
+                        pass
+                
                 # Prepare user values with the partner_id
                 user_values = {
                     'partner_id': partner.id,
                     'login': kw['login'],
                     'password': kw['password'],
                     'active': False,
+                    'company_id': company_id,
+                    'company_ids': [(4, company_id)],
                 }
                 
                 # Add optional fields if provided
@@ -800,7 +814,7 @@ class UserManagementAPI(HrRestApiController):
                 # Check for existing employee
                 existing_employee = request.env['hr.employee'].sudo().search([
                     ('user_id', '=', new_user.id),
-                    ('company_id', '=', request.env.company.id)
+                    ('company_id', '=', company_id)
                 ], limit=1)
                 
                 employee_id = None
@@ -811,7 +825,7 @@ class UserManagementAPI(HrRestApiController):
                         'work_email': kw.get('work_email', kw['login']),
                         'work_phone': kw.get('phone', False),
                         'mobile_phone': kw.get('mobile', False),
-                        'company_id': request.env.company.id,
+                        'company_id': company_id,
                         'image_1024': False,
                     }
                     if 'job_title' in kw:
@@ -833,7 +847,7 @@ class UserManagementAPI(HrRestApiController):
                         'work_email': kw.get('work_email', kw['login']),
                         'work_phone': kw.get('phone', False),
                         'mobile_phone': kw.get('mobile', False),
-                        'company_id': request.env.company.id,
+                        'company_id': company_id,
                         'image_1024': False,
                     }
                     if 'job_title' in kw:
@@ -850,6 +864,9 @@ class UserManagementAPI(HrRestApiController):
                     ).create(employee_values)
                     employee_id = employee.id
                 
+                # Get company name for response
+                company_name = request.env['res.company'].sudo().browse(company_id).name
+                
                 return {
                     "success": True,
                     "user_id": new_user.id,
@@ -857,6 +874,8 @@ class UserManagementAPI(HrRestApiController):
                     "partner_id": partner.id,
                     "name": kw['name'],
                     "login": new_user.login,
+                    "company_id": company_id,
+                    "company_name": company_name,
                     "message": "Registration successful. Your account is pending approval."
                 }
         except Exception as e:

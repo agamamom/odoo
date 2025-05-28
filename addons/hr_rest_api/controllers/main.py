@@ -1523,3 +1523,204 @@ class HrRestApiController(http.Controller):
     def options_session_auth(self, **kw):
         """Handle OPTIONS request for session authentication endpoint"""
         return self._handle_options_request()
+
+    @http.route('/api/departments/all', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_all_departments(self, **kw):
+        """
+        Get all departments information with optional filtering
+        
+        Optional params:
+        - limit: Maximum number of departments to return (default: 100)
+        - offset: Number of departments to skip for pagination (default: 0)
+        - active: Filter by active status (true/false)
+        - parent_id: Filter by parent department ID
+        - search: Search term for department name
+        - include_employees: Include count and list of employees (true/false, default: false)
+        """
+        # Validate API key or auth
+        is_valid, result = self._validate_api_key()
+        if not is_valid:
+            response = request.make_response(json.dumps(result), 
+                                           headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+        
+        # Parse parameters
+        limit = min(int(kw.get('limit', 100)), 500)  # Cap at 500 records
+        offset = int(kw.get('offset', 0))
+        include_employees = kw.get('include_employees', 'false').lower() in ['true', '1', 't', 'yes']
+        
+        # Build domain
+        domain = []
+        
+        # Active filter
+        if 'active' in kw:
+            active = kw['active'].lower() in ['true', '1', 't', 'yes']
+            domain.append(('active', '=', active))
+        
+        # Parent filter
+        if 'parent_id' in kw and kw['parent_id']:
+            try:
+                parent_id = int(kw['parent_id'])
+                if parent_id == 0:
+                    # Special case: filter for top-level departments (no parent)
+                    domain.append(('parent_id', '=', False))
+                else:
+                    domain.append(('parent_id', '=', parent_id))
+            except ValueError:
+                pass
+        
+        # Name search
+        if 'search' in kw and kw['search']:
+            domain.append(('name', 'ilike', kw['search']))
+        
+        # Fetch departments
+        try:
+            departments = request.env['hr.department'].sudo().search(domain, limit=limit, offset=offset)
+            total_count = request.env['hr.department'].sudo().search_count(domain)
+            
+            # Format department data
+            dept_data = []
+            for dept in departments:
+                # Basic department info
+                dept_info = {
+                    'id': dept.id,
+                    'name': dept.name,
+                    'complete_name': dept.complete_name if hasattr(dept, 'complete_name') else dept.name,
+                    'active': dept.active,
+                    'manager_id': dept.manager_id.id if dept.manager_id else False,
+                    'manager_name': dept.manager_id.name if dept.manager_id else "",
+                    'parent_id': dept.parent_id.id if dept.parent_id else False,
+                    'parent_name': dept.parent_id.name if dept.parent_id else "",
+                    'company_id': dept.company_id.id if dept.company_id else False,
+                    'company_name': dept.company_id.name if dept.company_id else "",
+                    'note': dept.note if hasattr(dept, 'note') else "",
+                    'total_employees': len(dept.member_ids) if hasattr(dept, 'member_ids') else 0
+                }
+                
+                # Include employee details if requested
+                if include_employees:
+                    employees = request.env['hr.employee'].sudo().search([
+                        ('department_id', '=', dept.id),
+                        ('active', '=', True)
+                    ])
+                    dept_info['employees'] = [{
+                        'id': emp.id,
+                        'name': emp.name,
+                        'job_title': emp.job_title or "",
+                        'work_email': emp.work_email or ""
+                    } for emp in employees]
+                
+                dept_data.append(dept_info)
+            
+            result = {
+                'success': True,
+                'count': len(dept_data),
+                'total': total_count,
+                'departments': dept_data
+            }
+            
+            response = request.make_response(json.dumps(result), 
+                                           headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+            
+        except Exception as e:
+            import traceback
+            _logger.error("Error fetching departments: %s\n%s", str(e), traceback.format_exc())
+            
+            result = {
+                'success': False,
+                'error': str(e)
+            }
+            
+            response = request.make_response(json.dumps(result), 
+                                           headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+    
+    @http.route('/api/departments/all', type='http', auth='public', methods=['OPTIONS'], csrf=False)
+    def options_all_departments(self, **kw):
+        """Handle OPTIONS request for departments/all endpoint"""
+        return self._handle_options_request()
+
+    @http.route('/api/companies/all', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_all_companies(self, **kw):
+        """
+        Get all companies information for dropdown selection
+        
+        Optional params:
+        - limit: Maximum number of companies to return (default: 100)
+        - offset: Number of companies to skip for pagination (default: 0)
+        - active: Filter by active status (true/false)
+        - search: Search term for company name
+        """
+        # Parse parameters
+        limit = min(int(kw.get('limit', 100)), 500)  # Cap at 500 records
+        offset = int(kw.get('offset', 0))
+        
+        # Build domain
+        domain = []
+        
+        # Active filter
+        if 'active' in kw:
+            active = kw['active'].lower() in ['true', '1', 't', 'yes']
+            domain.append(('active', '=', active))
+        
+        # Name search
+        if 'search' in kw and kw['search']:
+            domain.append(('name', 'ilike', kw['search']))
+        
+        # Fetch companies
+        try:
+            companies = request.env['res.company'].sudo().search(domain, limit=limit, offset=offset)
+            total_count = request.env['res.company'].sudo().search_count(domain)
+            
+            # Format company data
+            company_data = []
+            for company in companies:
+                company_info = {
+                    'id': company.id,
+                    'name': company.name,
+                    'currency_id': company.currency_id.id if company.currency_id else False,
+                    'currency_name': company.currency_id.name if company.currency_id else "",
+                    'currency_symbol': company.currency_id.symbol if company.currency_id else "",
+                    'email': company.email or "",
+                    'phone': company.phone or "",
+                    'website': company.website or "",
+                    'vat': company.vat or "",
+                    'company_registry': company.company_registry if hasattr(company, 'company_registry') else "",
+                    'country_id': company.country_id.id if company.country_id else False,
+                    'country_name': company.country_id.name if company.country_id else "",
+                    'logo_url': f"/web/image/res.company/{company.id}/logo/128x128",
+                    'parent_id': company.parent_id.id if company.parent_id else False,
+                    'parent_name': company.parent_id.name if company.parent_id else "",
+                }
+                company_data.append(company_info)
+            
+            result = {
+                'success': True,
+                'count': len(company_data),
+                'total': total_count,
+                'companies': company_data
+            }
+            
+            response = request.make_response(json.dumps(result), 
+                                        headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+            
+        except Exception as e:
+            import traceback
+            _logger.error("Error fetching companies: %s\n%s", str(e), traceback.format_exc())
+            
+            result = {
+                'success': False,
+                'error': str(e)
+            }
+            
+            response = request.make_response(json.dumps(result), 
+                                        headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+
+    
+    @http.route('/api/companies/all', type='http', auth='public', methods=['OPTIONS'], csrf=False)
+    def options_all_companies(self, **kw):
+        """Handle OPTIONS request for companies/all endpoint"""
+        return self._handle_options_request()
