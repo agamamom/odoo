@@ -768,71 +768,98 @@ class UserManagementAPI(HrRestApiController):
         if request.env['res.users'].sudo().search_count([('login', '=', kw['login'])]) > 0:
             return {"error": "Email already exists"}
         
-        # Prepare user values
-        user_values = {
-            'name': kw['name'],
-            'login': kw['login'],
-            'password': kw['password'],
-            'active': False,  # New users are inactive by default, pending approval
-        }
-        
-        # Add optional fields if provided
-        optional_user_fields = ['lang', 'tz', 'phone', 'mobile']
-        for field in optional_user_fields:
-            if field in kw:
-                user_values[field] = kw[field]
-        
         try:
-            # Create user
-            new_user = request.env['res.users'].sudo().create(user_values)
-            
-            # Check for existing employee
-            existing_employee = request.env['hr.employee'].sudo().search([
-                ('user_id', '=', new_user.id),
-                ('company_id', '=', request.env.company.id)  # Use current company
-            ], limit=1)
-            
-            if existing_employee:
-                return {
-                    "success": False,
-                    "user_id": new_user.id,
-                    "error": f"Employee already exists for user {new_user.login} in company {request.env.company.name}"
+            with request.env.cr.savepoint():  # Use savepoint for transaction isolation
+                # Create partner first to ensure name is set properly
+                partner_values = {
+                    'name': kw['name'],
+                    'phone': kw.get('phone', False),
+                    'mobile': kw.get('mobile', False),
                 }
-            
-            # Prepare employee values
-            employee_values = {
-                'name': kw['name'],
-                'user_id': new_user.id,
-                'work_email': kw.get('work_email', kw['login']),
-                'work_phone': kw.get('phone', False),
-                'mobile_phone': kw.get('mobile', False),
-                'company_id': request.env.company.id,  # Explicitly set company_id
-                'image_1024': False,  # Prevent automatic image generation
-            }
-            
-            # Add optional employee fields if provided
-            if 'job_title' in kw:
-                employee_values['job_title'] = kw['job_title']
+                partner = request.env['res.partner'].sudo().create(partner_values)
                 
-            if 'department_id' in kw and kw['department_id']:
-                try:
-                    department_id = int(kw['department_id'])
-                    if request.env['hr.department'].sudo().browse(department_id).exists():
-                        employee_values['department_id'] = department_id
-                except (ValueError, TypeError):
-                    pass  # Invalid department_id, ignore it
-            
-            # Create employee record linked to the user
-            employee = request.env['hr.employee'].sudo().create(employee_values)
-            
-            return {
-                "success": True,
-                "user_id": new_user.id,
-                "employee_id": employee.id,
-                "name": kw['name'],
-                "login": new_user.login,
-                "message": "Registration successful. Your account is pending approval."
-            }
+                # Prepare user values with the partner_id
+                user_values = {
+                    'partner_id': partner.id,
+                    'login': kw['login'],
+                    'password': kw['password'],
+                    'active': False,
+                }
+                
+                # Add optional fields if provided
+                optional_user_fields = ['lang', 'tz']
+                for field in optional_user_fields:
+                    if field in kw:
+                        user_values[field] = kw[field]
+                
+                # Create user linked to the partner
+                new_user = request.env['res.users'].sudo().with_context(
+                    no_reset_password=True
+                ).create(user_values)
+                
+                # Check for existing employee
+                existing_employee = request.env['hr.employee'].sudo().search([
+                    ('user_id', '=', new_user.id),
+                    ('company_id', '=', request.env.company.id)
+                ], limit=1)
+                
+                employee_id = None
+                if existing_employee:
+                    # Update existing employee
+                    employee_values = {
+                        'name': kw['name'],
+                        'work_email': kw.get('work_email', kw['login']),
+                        'work_phone': kw.get('phone', False),
+                        'mobile_phone': kw.get('mobile', False),
+                        'company_id': request.env.company.id,
+                        'image_1024': False,
+                    }
+                    if 'job_title' in kw:
+                        employee_values['job_title'] = kw['job_title']
+                    if 'department_id' in kw and kw['department_id']:
+                        try:
+                            department_id = int(kw['department_id'])
+                            if request.env['hr.department'].sudo().browse(department_id).exists():
+                                employee_values['department_id'] = department_id
+                        except (ValueError, TypeError):
+                            pass
+                    existing_employee.sudo().write(employee_values)
+                    employee_id = existing_employee.id
+                else:
+                    # Create new employee
+                    employee_values = {
+                        'name': kw['name'],
+                        'user_id': new_user.id,
+                        'work_email': kw.get('work_email', kw['login']),
+                        'work_phone': kw.get('phone', False),
+                        'mobile_phone': kw.get('mobile', False),
+                        'company_id': request.env.company.id,
+                        'image_1024': False,
+                    }
+                    if 'job_title' in kw:
+                        employee_values['job_title'] = kw['job_title']
+                    if 'department_id' in kw and kw['department_id']:
+                        try:
+                            department_id = int(kw['department_id'])
+                            if request.env['hr.department'].sudo().browse(department_id).exists():
+                                employee_values['department_id'] = department_id
+                        except (ValueError, TypeError):
+                            pass
+                    employee = request.env['hr.employee'].sudo().with_context(
+                        skip_image_computation=True
+                    ).create(employee_values)
+                    employee_id = employee.id
+                
+                return {
+                    "success": True,
+                    "user_id": new_user.id,
+                    "employee_id": employee_id,
+                    "partner_id": partner.id,
+                    "name": kw['name'],
+                    "login": new_user.login,
+                    "message": "Registration successful. Your account is pending approval."
+                }
         except Exception as e:
-            _logger.error("Error in public user registration: %s", str(e))
+            import traceback
+            _logger.error("Error in public user registration: %s\n%s", str(e), traceback.format_exc())
             return {"error": f"Failed to register user: {str(e)}"}
