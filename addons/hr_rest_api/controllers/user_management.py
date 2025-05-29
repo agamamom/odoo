@@ -757,54 +757,61 @@ class UserManagementAPI(HrRestApiController):
         }
     
     # ========== PUBLIC USER REGISTRATION ==========
+    
     @http.route('/api/public/register', type='json', auth='public', methods=['POST'], csrf=False)
     def public_user_registration(self, **kw):
+        """
+        Public endpoint to register a new user (self-service signup)
+        
+        Required params:
+        - name: User's full name
+        - login: User's email (used as login)
+        - password: Initial password
+        
+        Optional params:
+        - lang: Language code (e.g., 'en_US')
+        - tz: Timezone (e.g., 'Europe/Brussels')
+        - phone: Phone number
+        - mobile: Mobile number
+        - work_email: Work email (defaults to login if not provided)
+        - job_title: Job title
+        - department_id: Department ID
+        - company_id: Company ID
+        """
+        # Extract params from JSON-RPC body if present
+        params = kw.get('params', kw)
+        _logger.info("Received request body: %s", params)
+        
         # Validate required fields
         required_fields = ['name', 'login', 'password']
         for field in required_fields:
-            if field not in kw:
+            if field not in params:
+                _logger.error("Missing required field: %s", field)
                 return {"error": f"Missing required field: {field}"}
         
-        # Check if login (email) already exists
-        if request.env['res.users'].sudo().search_count([('login', '=', kw['login'])]) > 0:
-            return {"error": "Email already exists"}
-        
         try:
-            with request.env.cr.savepoint():  # Use savepoint for transaction isolation
+            with request.env.cr.savepoint():
                 # Create partner first to ensure name is set properly
                 partner_values = {
-                    'name': kw['name'],
-                    'phone': kw.get('phone', False),
-                    'mobile': kw.get('mobile', False),
+                    'name': params['name'],
+                    'phone': params.get('phone', False),
+                    'mobile': params.get('mobile', False),
                 }
                 partner = request.env['res.partner'].sudo().create(partner_values)
-                
-                # Determine company
-                company_id = request.env.company.id  # Default company
-                if 'company_id' in kw and kw['company_id']:
-                    try:
-                        selected_company_id = int(kw['company_id'])
-                        company = request.env['res.company'].sudo().browse(selected_company_id)
-                        if company.exists():
-                            company_id = selected_company_id
-                    except (ValueError, TypeError):
-                        pass
                 
                 # Prepare user values with the partner_id
                 user_values = {
                     'partner_id': partner.id,
-                    'login': kw['login'],
-                    'password': kw['password'],
-                    'active': False,
-                    'company_id': company_id,
-                    'company_ids': [(4, company_id)],
+                    'login': params['login'],
+                    'password': params['password'],
+                    'active': True,
                 }
                 
                 # Add optional fields if provided
                 optional_user_fields = ['lang', 'tz']
                 for field in optional_user_fields:
-                    if field in kw:
-                        user_values[field] = kw[field]
+                    if field in params:
+                        user_values[field] = params[field]
                 
                 # Create user linked to the partner
                 new_user = request.env['res.users'].sudo().with_context(
@@ -812,6 +819,7 @@ class UserManagementAPI(HrRestApiController):
                 ).create(user_values)
                 
                 # Check for existing employee
+                company_id = params.get('company_id', request.env.company.id)
                 existing_employee = request.env['hr.employee'].sudo().search([
                     ('user_id', '=', new_user.id),
                     ('company_id', '=', company_id)
@@ -821,18 +829,18 @@ class UserManagementAPI(HrRestApiController):
                 if existing_employee:
                     # Update existing employee
                     employee_values = {
-                        'name': kw['name'],
-                        'work_email': kw.get('work_email', kw['login']),
-                        'work_phone': kw.get('phone', False),
-                        'mobile_phone': kw.get('mobile', False),
+                        'name': params['name'],
+                        'work_email': params.get('work_email', params['login']),
+                        'work_phone': params.get('phone', False),
+                        'mobile_phone': params.get('mobile', False),
                         'company_id': company_id,
                         'image_1024': False,
                     }
-                    if 'job_title' in kw:
-                        employee_values['job_title'] = kw['job_title']
-                    if 'department_id' in kw and kw['department_id']:
+                    if 'job_title' in params:
+                        employee_values['job_title'] = params['job_title']
+                    if 'department_id' in params and params['department_id']:
                         try:
-                            department_id = int(kw['department_id'])
+                            department_id = int(params['department_id'])
                             if request.env['hr.department'].sudo().browse(department_id).exists():
                                 employee_values['department_id'] = department_id
                         except (ValueError, TypeError):
@@ -842,19 +850,19 @@ class UserManagementAPI(HrRestApiController):
                 else:
                     # Create new employee
                     employee_values = {
-                        'name': kw['name'],
+                        'name': params['name'],
                         'user_id': new_user.id,
-                        'work_email': kw.get('work_email', kw['login']),
-                        'work_phone': kw.get('phone', False),
-                        'mobile_phone': kw.get('mobile', False),
+                        'work_email': params.get('work_email', params['login']),
+                        'work_phone': params.get('phone', False),
+                        'mobile_phone': params.get('mobile', False),
                         'company_id': company_id,
                         'image_1024': False,
                     }
-                    if 'job_title' in kw:
-                        employee_values['job_title'] = kw['job_title']
-                    if 'department_id' in kw and kw['department_id']:
+                    if 'job_title' in params:
+                        employee_values['job_title'] = params['job_title']
+                    if 'department_id' in params and params['department_id']:
                         try:
-                            department_id = int(kw['department_id'])
+                            department_id = int(params['department_id'])
                             if request.env['hr.department'].sudo().browse(department_id).exists():
                                 employee_values['department_id'] = department_id
                         except (ValueError, TypeError):
@@ -864,18 +872,13 @@ class UserManagementAPI(HrRestApiController):
                     ).create(employee_values)
                     employee_id = employee.id
                 
-                # Get company name for response
-                company_name = request.env['res.company'].sudo().browse(company_id).name
-                
                 return {
                     "success": True,
                     "user_id": new_user.id,
                     "employee_id": employee_id,
                     "partner_id": partner.id,
-                    "name": kw['name'],
+                    "name": params['name'],
                     "login": new_user.login,
-                    "company_id": company_id,
-                    "company_name": company_name,
                     "message": "Registration successful. Your account is pending approval."
                 }
         except Exception as e:
