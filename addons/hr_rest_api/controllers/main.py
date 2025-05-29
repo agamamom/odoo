@@ -1296,10 +1296,10 @@ class HrRestApiController(http.Controller):
     def find_employee_by_email(self, **kw):
         """Tìm employee theo work_email, trả về id nếu tồn tại"""
         # Validate API key
-        is_valid, user = self._validate_api_key()
-        if not is_valid:
-            response = request.make_response(json.dumps(user), headers=[('Content-Type', 'application/json')])
-            return self._add_cors_headers(response)
+        # is_valid, user = self._validate_api_key()
+        # if not is_valid:
+        #     response = request.make_response(json.dumps(user), headers=[('Content-Type', 'application/json')])
+        #     return self._add_cors_headers(response)
 
         # Parse input
         try:
@@ -1313,7 +1313,7 @@ class HrRestApiController(http.Controller):
             return self._add_cors_headers(response)
 
         # Tìm employee theo work_email
-        employee = request.env['hr.employee'].sudo().search([('work_email', '=', work_email)], limit=1)
+        employee = request.env['res.users'].sudo().search([('login', '=', work_email)], limit=1)
         if employee:
             result = {'success': True, 'employee_id': employee.id}
         else:
@@ -1723,4 +1723,43 @@ class HrRestApiController(http.Controller):
     @http.route('/api/companies/all', type='http', auth='public', methods=['OPTIONS'], csrf=False)
     def options_all_companies(self, **kw):
         """Handle OPTIONS request for companies/all endpoint"""
+        return self._handle_options_request()
+    
+    @http.route('/api/res_groups_users_rel/find_by_uid', type='http', auth='public', methods=['POST'], csrf=False)
+    def find_groups_by_uid(self, **kw):
+        """Find group IDs associated with a given user ID (uid) from res_groups_users_rel table"""
+        # Parse input
+        try:
+            data = json.loads(request.httprequest.data.decode('utf-8'))
+        except Exception:
+            data = request.jsonrequest
+        uid = data.get('uid')
+        if not uid or not isinstance(uid, int):
+            result = {'success': False, 'error': 'Missing or invalid uid in request body'}
+            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+
+        # # Find groups associated with the user using ORM
+        # groups = request.env['res.groups.users.rel'].sudo().search([('uid', 'in', [uid])])
+        # if groups:
+        #     group_ids = groups.mapped('gid').ids
+        #     result = {'success': True, 'group_ids': group_ids}
+        # else:
+        #     result = {'success': False, 'error': 'No groups found for this user ID'}
+        # Direct SQL query on the actual table
+        request.env.cr.execute("SELECT gid FROM res_groups_users_rel WHERE uid = %s", (uid,))
+        results = request.env.cr.fetchall()
+        
+        if results:
+            group_ids = [row[0] for row in results]
+            result = {'success': True, 'group_ids': group_ids}
+        else:
+            result = {'success': False, 'error': 'No groups found for this user ID'}
+
+        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    @http.route('/api/res_groups_users_rel/find_by_uid', type='http', auth='public', methods=['OPTIONS'], csrf=False)
+    def options_find_groups_by_uid(self, **kw):
+        """Handle OPTIONS request for find_by_uid endpoint"""
         return self._handle_options_request()

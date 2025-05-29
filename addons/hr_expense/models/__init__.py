@@ -15,3 +15,4 @@ from . import res_config_settings
 from . import res_company
 from . import analytic
 from . import ir_actions_report
+from . import res_groups_users_rel
