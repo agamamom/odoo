@@ -1951,3 +1951,183 @@ class HrRestApiController(http.Controller):
     def options_employee_avatar_image(self, employee_id, **kw):
         """Handle OPTIONS request for avatar image endpoint"""
         return self._handle_options_request()
+    
+    @http.route('/api/hr/attendance/employee/<int:employee_id>', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_employee_attendance_records(self, employee_id, **kw):
+        """
+        Get all attendance records (check-ins and check-outs) for a specific employee
+        
+        Optional query parameters:
+        - limit: Maximum number of records to return (default: 100)
+        - offset: Number of records to skip for pagination (default: 0)
+        - from_date: Filter records from this date (format: YYYY-MM-DD)
+        - to_date: Filter records to this date (format: YYYY-MM-DD)
+        - current_date_only: If 'true', only returns records for the current date (default: 'true')
+        - sort_by: Field to sort by (default: 'check_in desc')
+        
+        Note: By default, this endpoint returns only the current day's records.
+        Set current_date_only=false to use from_date/to_date filters or to get all records.
+        """
+        # Validate API key or session
+        is_valid, result = self._validate_api_key()
+        if not is_valid:
+            response = request.make_response(
+                json.dumps(result),
+                headers=[('Content-Type', 'application/json')]
+            )
+            return self._add_cors_headers(response)
+        
+        try:
+            # Parse parameters
+            limit = min(int(kw.get('limit', 100)), 500)  # Cap at 500 records
+            offset = int(kw.get('offset', 0))
+            sort_by = kw.get('sort_by', 'check_in desc')
+            
+            # Default to current date filtering if no date parameters are explicitly provided
+            has_date_filters = 'from_date' in kw or 'to_date' in kw or 'current_date_only' in kw
+            current_date_only = kw.get('current_date_only', 'true' if not has_date_filters else 'false').lower() in ['true', '1', 't', 'yes']
+            
+            # Build domain for date filtering
+            domain = [('employee_id', '=', employee_id)]
+            
+            # Current date filter takes precedence if specified
+            if current_date_only:
+                # Get today's date in the user's timezone
+                user_tz = request.env.user.tz or 'UTC'
+                today = fields.Date.context_today(request.env['hr.attendance'].with_context(tz=user_tz))
+                domain.append(('check_in', '>=', fields.Datetime.to_string(datetime.combine(today, datetime.min.time()))))
+                domain.append(('check_in', '<=', fields.Datetime.to_string(datetime.combine(today, datetime.max.time()))))
+            else:
+                # Apply from_date and to_date filters if current_date_only is not set
+                if 'from_date' in kw and kw['from_date']:
+                    try:
+                        from_date = fields.Date.from_string(kw['from_date'])
+                        domain.append(('check_in', '>=', datetime.combine(from_date, datetime.min.time())))
+                    except ValueError:
+                        error_msg = {'success': False, 'error': f"Invalid from_date format: {kw['from_date']}. Use YYYY-MM-DD."}
+                        response = request.make_response(
+                            json.dumps(error_msg),
+                            headers=[('Content-Type', 'application/json')],
+                            status=400
+                        )
+                        return self._add_cors_headers(response)
+                        
+                if 'to_date' in kw and kw['to_date']:
+                    try:
+                        to_date = fields.Date.from_string(kw['to_date'])
+                        domain.append(('check_in', '<=', datetime.combine(to_date, datetime.max.time())))
+                    except ValueError:
+                        error_msg = {'success': False, 'error': f"Invalid to_date format: {kw['to_date']}. Use YYYY-MM-DD."}
+                        response = request.make_response(
+                            json.dumps(error_msg),
+                            headers=[('Content-Type', 'application/json')],
+                            status=400
+                        )
+                        return self._add_cors_headers(response)
+            
+            # Check if employee exists
+            employee = request.env['hr.employee'].sudo().browse(employee_id)
+            if not employee.exists():
+                error_msg = {'success': False, 'error': f'Employee not found with ID {employee_id}'}
+                response = request.make_response(
+                    json.dumps(error_msg),
+                    headers=[('Content-Type', 'application/json')],
+                    status=404
+                )
+                return self._add_cors_headers(response)
+            
+            # Get attendance records
+            attendance_records = request.env['hr.attendance'].sudo().search(
+                domain,
+                limit=limit,
+                offset=offset,
+                order=sort_by
+            )
+            
+            # Count total records for this employee (for pagination info)
+            total_records = request.env['hr.attendance'].sudo().search_count(domain)
+            
+            # Format records with all relevant information
+            attendance_data = []
+            for record in attendance_records:
+                # Create base record with required fields
+                record_data = {
+                    'id': record.id,
+                    'employee_id': record.employee_id.id,
+                    'check_in': record.check_in.isoformat() if record.check_in else None,
+                    'check_out': record.check_out.isoformat() if record.check_out else None,
+                    'worked_hours': record.worked_hours,
+                    'create_date': record.create_date.isoformat() if record.create_date else None,
+                    'write_date': record.write_date.isoformat() if record.write_date else None,
+                    'company_id': record.company_id.id if record.company_id else None,
+                }
+                
+                # Add all additional fields that exist in the hr.attendance model
+                optional_fields = [
+                    'overtime_hours', 'overtime_status', 'validated_overtime_hours',
+                    'expected_hours', 'overtime_wage_coefficient',
+                    'in_latitude', 'in_longitude', 'in_country_name', 'in_city', 'in_ip_address', 
+                    'in_browser', 'in_mode',
+                    'out_latitude', 'out_longitude', 'out_country_name', 'out_city', 'out_ip_address',
+                    'out_browser', 'out_mode',
+                    'face_id_result', 'is_within_geofence', 'is_offline', 'face_id_timestamp'
+                ]
+                
+                for field in optional_fields:
+                    if hasattr(record, field):
+                        value = getattr(record, field)
+                        # Handle timestamp fields
+                        if field == 'face_id_timestamp' and value:
+                            record_data[field] = value.isoformat()
+                        else:
+                            record_data[field] = value
+                
+                attendance_data.append(record_data)
+            
+            # Prepare the response
+            result = {
+                'success': True,
+                'count': len(attendance_data),
+                'total': total_records,
+                'employee': {
+                    'id': employee.id,
+                    'name': employee.name,
+                    'company_id': employee.company_id.id if employee.company_id else None,
+                },
+                'filters_applied': {
+                    'current_date_only': current_date_only,
+                    'from_date': kw.get('from_date') if not current_date_only and 'from_date' in kw else None,
+                    'to_date': kw.get('to_date') if not current_date_only and 'to_date' in kw else None,
+                },
+                'attendance_records': attendance_data,
+                'pagination': {
+                    'limit': limit,
+                    'offset': offset,
+                    'total_pages': (total_records + limit - 1) // limit if limit > 0 else 0
+                }
+            }
+            
+            response = request.make_response(
+                json.dumps(result, default=self._json_serializable),
+                headers=[('Content-Type', 'application/json')]
+            )
+            return self._add_cors_headers(response)
+            
+        except Exception as e:
+            _logger.error("Error fetching attendance records: %s", str(e))
+            error_msg = {
+                'success': False,
+                'error': f'Failed to retrieve attendance records: {str(e)}',
+                'error_type': type(e).__name__
+            }
+            response = request.make_response(
+                json.dumps(error_msg),
+                headers=[('Content-Type', 'application/json')],
+                status=500
+            )
+            return self._add_cors_headers(response)
+
+    @http.route('/api/hr/attendance/employee/<int:employee_id>', type='http', auth='public', methods=['OPTIONS'], csrf=False)
+    def options_employee_attendance_records(self, employee_id, **kw):
+        """Handle OPTIONS request for employee attendance records endpoint"""
+        return self._handle_options_request()

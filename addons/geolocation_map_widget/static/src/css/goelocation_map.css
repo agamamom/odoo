@@ -1,0 +1,182 @@
+.o_input_map{
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.map-buttons {
+    position: absolute;
+    top: -5px;
+    right: 13px;
+    z-index: 100;
+    display: flex;
+    gap: 10px;
+}
+
+#update_from_address,
+#update_from_coordinates {
+    margin-right: 5px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+#update_from_coordinates {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+#update_from_coordinates:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+}
+
+#open_map{
+    color: var(--primary);
+    font-size: 20px;
+}
+
+.o_leaftlet_preview_open{
+    position: relative;
+    height: 500px; /* Increased height for larger map */
+    width: 100%;
+    top: 9px;
+    border-radius: 3px;
+    border: 2px solid var(--primary);
+    margin-bottom: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Định dạng các trường địa chỉ */
+.o_address_street,
+.o_address_city, 
+.o_address_state, 
+.o_address_country {
+    padding: 6px 8px !important;
+    border-radius: 4px !important;
+    border: 1px solid #ced4da !important;
+    width: 100% !important;
+}
+
+/* Định dạng container bản đồ */
+.geo_map_container {
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+}
+
+/* Hiển thị các trường địa chỉ đã ghi đè lên và ẩn các trường gốc */
+[name="street"][invisible="1"],
+[name="street2"][invisible="1"],
+[name="city"][invisible="1"],
+[name="state_id"][invisible="1"],
+[name="zip"][invisible="1"],
+[name="country_id"][invisible="1"] {
+    display: none !important;
+}
+
+/* Ẩn các trường không mong muốn */
+input[name="street2"],
+.o_field_widget[name="street2"],
+input[name="zip"],
+.o_field_widget[name="zip"] {
+    display: none !important;
+}
+
+/* Ẩn input field của location_address nhưng vẫn hiển thị bản đồ */
+.hide_input_show_map .o_input_map .o_input {
+    display: none !important;
+}
+
+/* Làm cho nút cập nhật từ địa chỉ rõ ràng hơn */
+.hide_input_show_map .map-buttons {
+    top: -40px;
+    right: 0;
+}
+
+/* Make map responsive */
+@media (max-width: 768px) {
+    .o_leaftlet_preview_open {
+        height: 400px;
+    }
+    
+    .map-buttons {
+        flex-direction: column;
+        top: -40px;
+        gap: 5px;
+    }
+    
+    #update_from_address,
+    #update_from_coordinates,
+    #open_map {
+        font-size: 12px;
+        padding: 4px 8px;
+    }
+}
+
+@media (min-width: 1200px) {
+    .o_leaftlet_preview_open {
+        height: 550px;
+    }
+}
+
+/* For smaller screens like phones */
+@media (max-width: 576px) {
+    .o_leaftlet_preview_open {
+        height: 350px;
+    }
+    
+    .map-buttons {
+        right: 5px;
+    }
+}
+
+/* Hide the location_address field which is now invisible */
+.geolocation_map_container + .location_address {
+    display: none !important;
+}
+
+/* Improve map controls */
+.leaflet-control-zoom {
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important;
+}
+
+.leaflet-control-zoom a {
+    font-size: 18px !important;
+    line-height: 30px !important;
+    width: 30px !important;
+    height: 30px !important;
+}
+
+/* Add styles for coordinate fields */
+.o_field_float[name="latitude"],
+.o_field_float[name="longitude"] {
+    font-weight: bold;
+    color: var(--primary);
+    font-size: 1.1em;
+}
+
+/* Add a special class for the coordinates container */
+.geo_coordinates_container {
+    background-color: rgba(var(--primary-rgb), 0.05);
+    padding: 8px;
+    border-radius: 4px;
+    margin-top: 8px;
+    border-left: 3px solid var(--primary);
+}
+
+/* Add style for leaflet popup */
+.leaflet-popup-content {
+    font-weight: bold;
+    color: var(--primary);
+}
+
+/* Improve map marker appearance */
+.leaflet-marker-icon {
+    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));
+}
+
+/* Leaflet attribution - make it less obtrusive */
+.leaflet-control-attribution {
+    font-size: 9px !important;
+    background: rgba(255,255,255,0.7) !important;
+}
