@@ -9,6 +9,7 @@ from odoo import fields
 import io
 from PIL import Image
 import base64
+import binascii
 
 _logger = logging.getLogger(__name__)
 
@@ -16,10 +17,10 @@ class HrRestApiController(http.Controller):
     
     def _validate_api_key(self):
         """
-        Simplified API key validation method that uses HTTP Basic Auth instead.
+        Simplified API key validation method that uses HTTP Basic Auth or API key.
         Returns a tuple (is_valid, result) where:
         - is_valid: boolean indicating if authentication is valid
-        - result: the user object if valid, error dict if not
+        - result: the user object if valid, error dict with specific message if not
         """
         # Get authentication from Basic Auth
         auth_header = request.httprequest.headers.get('Authorization')
@@ -32,20 +33,38 @@ class HrRestApiController(http.Controller):
                 login, password = auth_decoded.split(':', 1)
                 
                 user = request.env['res.users'].sudo().search([('login', '=', login)], limit=1)
-                if user and request.env['res.users'].sudo()._verify_and_update_password(password, user.id):
-                    return True, user
+                if not user:
+                    return False, {"error": "Authentication failed: User not found with provided login"}
+                    
+                if not request.env['res.users'].sudo()._verify_and_update_password(password, user.id):
+                    return False, {"error": "Authentication failed: Invalid password"}
+                    
+                return True, user
+            except ValueError:
+                return False, {"error": "Authentication failed: Invalid Basic Auth format (should be 'login:password')"}
             except Exception as e:
                 _logger.warning("Error validating Basic Auth: %s", str(e))
-                return False, {"error": "Invalid authentication"}
+                return False, {"error": f"Authentication error: {str(e)}"}
         elif api_key:
             # For backward compatibility, check if API key matches a user token
-            # This is a simplified approach - in production you would want a more secure method
             user = request.env['res.users'].sudo().search([('oauth_access_token', '=', api_key)], limit=1)
             if user:
                 return True, user
-                
-        # If we got here, authentication failed
-        return False, {"error": "Invalid or missing authentication credentials"}
+            else:
+                return False, {"error": "Authentication failed: Invalid API key"}
+        elif request.session.uid:
+            # Check if user is already authenticated in the session
+            try:
+                user = request.env['res.users'].sudo().browse(request.session.uid)
+                if user.exists():
+                    return True, user
+                else:
+                    return False, {"error": "Session authentication failed: User no longer exists"}
+            except Exception as e:
+                return False, {"error": f"Session authentication error: {str(e)}"}
+        
+        # If we got here, no authentication method was provided
+        return False, {"error": "Authentication required: Missing Basic Auth header or API key"}
     
     def _add_cors_headers(self, response):
         """Add CORS headers to the response"""
@@ -1419,8 +1438,12 @@ class HrRestApiController(http.Controller):
         if not is_valid:
             response = request.make_response(json.dumps(user), headers=[('Content-Type', 'application/json')])
             return self._add_cors_headers(response)
+        
+        user_id = request.env['res.users'].sudo().search([('id', '=', employee_id)], limit=1)
+        if not user_id.exists():
+            return request.not_found()
 
-        employee = request.env['hr.employee'].sudo().browse(employee_id)
+        employee = request.env['hr.employee'].sudo().search([('user_id', '=', user_id.id)], limit=1)
         if not employee.exists():
             return request.not_found()
 
@@ -1428,7 +1451,7 @@ class HrRestApiController(http.Controller):
             # Tìm attachment mới nhất dựa vào create_date
             domain = [
                 ('res_model', '=', 'hr.employee'),
-                ('res_id', '=', employee_id),
+                ('res_id', '=', employee.id),
                 ('res_field', '=', field_name)
             ]
             latest_attachment = request.env['ir.attachment'].sudo().search(
@@ -1762,4 +1785,169 @@ class HrRestApiController(http.Controller):
     @http.route('/api/res_groups_users_rel/find_by_uid', type='http', auth='public', methods=['OPTIONS'], csrf=False)
     def options_find_groups_by_uid(self, **kw):
         """Handle OPTIONS request for find_by_uid endpoint"""
+        return self._handle_options_request()
+
+    @http.route('/api/hr/employees/current/avatar', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_current_employee_avatar(self, **kw):
+        """Get avatar image as base64 for the current authenticated employee"""
+        # Validate API key or session
+        is_valid, result = self._validate_api_key()
+        if not is_valid:
+            response = request.make_response(json.dumps(result), 
+                                           headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+        
+        # Get the current user
+        user = result
+        
+        # Find the employee record associated with the user
+        employee = request.env['hr.employee'].sudo().search([('user_id', '=', user.id)], limit=1)
+        
+        if not employee:
+            result = {
+                'success': False,
+                'error': 'No employee record found for the current user'
+            }
+            response = request.make_response(json.dumps(result), 
+                                           headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+        
+        # Get the image field (image_1920 is the full-size image in Odoo)
+        if employee.image_1920:
+            # The image is already stored as base64 in the database
+            image_base64 = employee.image_1920
+            
+            result = {
+                'success': True,
+                'image_1920': image_base64,
+                'employee_id': employee.id,
+                'employee_name': employee.name
+            }
+        else:
+            result = {
+                'success': False,
+                'error': 'Employee has no avatar image'
+            }
+        
+        response = request.make_response(json.dumps(result), 
+                                       headers=[('Content-Type', 'application/json')])
+        return self._add_cors_headers(response)
+
+    @http.route('/api/hr/employees/current/avatar', type='http', auth='public', methods=['OPTIONS'], csrf=False)
+    def options_current_employee_avatar(self, **kw):
+        """Handle OPTIONS request for the avatar endpoint"""
+        return self._handle_options_request()
+
+    @http.route('/api/hr/employees/<int:employee_id>/avatar_image', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_employee_avatar_image(self, employee_id, **kw):
+        """Get avatar image as binary data for an employee"""
+        # Validate API key or session
+        is_valid, result = self._validate_api_key()
+        if not is_valid:
+            response = request.make_response(
+                json.dumps(result), 
+                headers=[('Content-Type', 'application/json')]
+            )
+            return self._add_cors_headers(response)
+        
+        # Find the employee record
+        employee = request.env['hr.employee'].sudo().browse(employee_id)
+        if not employee.exists():
+            error_msg = {'success': False, 'error': f'Employee not found with ID {employee_id}'}
+            response = request.make_response(
+                json.dumps(error_msg),
+                headers=[('Content-Type', 'application/json')],
+                status=404
+            )
+            return self._add_cors_headers(response)
+
+        try:
+            # First check for avatar_1920 (the high-resolution avatar field)
+            image_field = 'avatar_1920'
+            
+            # Look for the attachment first (might have better quality)
+            domain = [
+                ('res_model', '=', 'hr.employee'),
+                ('res_id', '=', employee_id),
+                ('res_field', '=', image_field)
+            ]
+            
+            latest_attachment = request.env['ir.attachment'].sudo().search(
+                domain, order='create_date desc', limit=1
+            )
+            
+            if latest_attachment and latest_attachment.datas:
+                # If attachment found, use its data
+                image_data = latest_attachment.datas
+                content_type = latest_attachment.mimetype or 'image/png'
+            else:
+                # Try employee's avatar fields in order of preference
+                if employee.avatar_1920:
+                    image_data = employee.avatar_1920
+                    content_type = 'image/png'
+                elif employee.image_1920:
+                    image_data = employee.image_1920
+                    content_type = 'image/png'
+                else:
+                    # No avatar found
+                    error_msg = {'success': False, 'error': f'No avatar image found for employee {employee.name} (ID: {employee_id})'}
+                    response = request.make_response(
+                        json.dumps(error_msg),
+                        headers=[('Content-Type', 'application/json')],
+                        status=404
+                    )
+                    return self._add_cors_headers(response)
+                
+            if not image_data:
+                error_msg = {'success': False, 'error': 'Image data is empty or corrupted'}
+                response = request.make_response(
+                    json.dumps(error_msg),
+                    headers=[('Content-Type', 'application/json')],
+                    status=404
+                )
+                return self._add_cors_headers(response)
+            
+            try:
+                # Verify that image data is valid base64
+                decoded_image = base64.b64decode(image_data)
+                if not decoded_image:
+                    raise ValueError("Decoded image data is empty")
+                    
+                # Return the binary image directly
+                response = request.make_response(
+                    decoded_image, 
+                    headers=[('Content-Type', content_type)]
+                )
+                
+                # Add cache control headers to improve performance
+                response.headers.add('Cache-Control', 'public, max-age=86400')  # Cache for 24 hours
+                
+                return self._add_cors_headers(response)
+                
+            except binascii.Error:
+                error_msg = {'success': False, 'error': 'Invalid base64 encoding in image data'}
+                response = request.make_response(
+                    json.dumps(error_msg),
+                    headers=[('Content-Type', 'application/json')],
+                    status=500
+                )
+                return self._add_cors_headers(response)
+            
+        except Exception as e:
+            _logger.error("Error fetching employee avatar: %s", str(e))
+            error_msg = {
+                'success': False, 
+                'error': f'Failed to retrieve avatar: {str(e)}',
+                'error_type': type(e).__name__
+            }
+            response = request.make_response(
+                json.dumps(error_msg),
+                headers=[('Content-Type', 'application/json')],
+                status=500
+            )
+            return self._add_cors_headers(response)
+
+    @http.route('/api/hr/employees/<int:employee_id>/avatar_image', type='http', auth='public', methods=['OPTIONS'], csrf=False)
+    def options_employee_avatar_image(self, employee_id, **kw):
+        """Handle OPTIONS request for avatar image endpoint"""
         return self._handle_options_request()
