@@ -1,4 +1,3 @@
-
 // = Main Navbar
 // ============================================================================
 .o_main_navbar {
@@ -249,4 +248,36 @@
 body.o_is_superuser .o_menu_systray {
     border-image: repeating-linear-gradient(135deg, #d9b904, #d9b904 10px, #373435 10px, #373435 20px) 2;
     border-image-width: map-get($border-widths, 2);
+}
+
+.o_app_menu_sidebar {
+    width: 100%;
+    max-width: 300px;
+    background-color: var(--o-card-bg);
+    z-index: var(--o-navbar-zindex, 1) + 2;
+    
+    /* This ensures the sidebar is hidden by default on all devices */
+    transform: translateX(-100%) !important;
+    
+    /* Only show when transition class indicates it should be visible */
+    &.o-app-menu-sidebar-enter-active,
+    &.o-app-menu-sidebar-enter-to {
+        transform: translateX(0) !important;
+    }
+    
+    .o_sidebar_topbar {
+        height: var(--o-navbar-height);
+    }
+    
+    .o_burger_menu_content {
+        .o_app {
+            cursor: pointer;
+            padding-right: 1rem;
+            padding-left: 1rem;
+            
+            &:hover {
+                background-color: var(--o-card-bg-light);
+            }
+        }
+    }
 }

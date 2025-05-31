@@ -1,0 +1,53 @@
+/* Custom CSS to prevent sidebar from automatically showing on mobile */
+.o_app_menu_sidebar {
+    /* Force sidebar to be hidden by default on all screen sizes */
+    transform: translateX(-100%) !important;
+    
+    /* Only show when explicitly triggered by user action */
+    &.o-app-menu-sidebar-enter-active,
+    &.o-app-menu-sidebar-enter-to {
+        transform: translateX(0) !important;
+    }
+}
+
+/* Adjust transition effects */
+.o-app-menu-sidebar-enter-active, 
+.o-app-menu-sidebar-leave-active {
+    transition: transform 0.3s ease !important;
+}
+
+.o-app-menu-sidebar-enter-from,
+.o-app-menu-sidebar-leave-to {
+    transform: translateX(-100%) !important;
+}
+
+/* Ensure the sidebar toggle button works correctly */
+.o_menu_toggle {
+    cursor: pointer;
+}
+
+/* Create a rule that applies to all screen sizes, even without the JS-added class */
+@media (max-width: 767.98px) {
+    .o_app_menu_sidebar:not(.o-app-menu-sidebar-enter-active):not(.o-app-menu-sidebar-enter-to) {
+        transform: translateX(-100%) !important;
+    }
+    
+    /* Set employee avatar width to 50% of screen on mobile */
+    .o_employee_avatar {
+        width: 50% !important;
+        max-width: 50% !important;
+    }
+    .o_field_widget.o_field_image.oe_avatar{
+        width: 100% !important;
+    }
+    .o_form_view .oe_avatar .img{
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+    .o_form_view .oe_avatar .oe_avatar_initial{
+        font-size: 10px !important;
+    }
+    
+    
+} 

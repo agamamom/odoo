@@ -385,4 +385,13 @@
             <owl-component name="web.install_scoped_app" />
         </t>
     </template>
+
+    <template id="assets_web" name="web assets" inherit_id="web.assets_common">
+        <xpath expr="." position="inside">
+            <!-- Custom sidebar CSS - load first -->
+            <link rel="stylesheet" type="text/scss" href="/web/static/src/webclient/navbar/custom_sidebar.scss"/>
+            <!-- Custom sidebar JS - defer loading to avoid DOM issues -->
+            <script type="text/javascript" src="/web/static/src/webclient/navbar/custom_sidebar.js" defer="defer"/>
+        </xpath>
+    </template>
 </odoo>
