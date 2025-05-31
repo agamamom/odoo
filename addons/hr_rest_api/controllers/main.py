@@ -1334,7 +1334,12 @@ class HrRestApiController(http.Controller):
         # Tìm employee theo work_email
         employee = request.env['res.users'].sudo().search([('login', '=', work_email)], limit=1)
         if employee:
-            result = {'success': True, 'employee_id': employee.id}
+            result = {
+                'success': True, 
+                'employee_id': employee.id,
+                'company_id': employee.company_id.id if employee.company_id else None,
+                'company_name': employee.company_id.name if employee.company_id else None
+            }
         else:
             result = {'success': False, 'error': 'No employee found with this work_email'}
         response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
@@ -2130,4 +2135,67 @@ class HrRestApiController(http.Controller):
     @http.route('/api/hr/attendance/employee/<int:employee_id>', type='http', auth='public', methods=['OPTIONS'], csrf=False)
     def options_employee_attendance_records(self, employee_id, **kw):
         """Handle OPTIONS request for employee attendance records endpoint"""
+        return self._handle_options_request()
+
+    @http.route('/api/company/<int:company_id>/location', type='http', auth='public', methods=['GET'], csrf=False)
+    def get_company_location(self, company_id, **kw):
+        """
+        Get longitude and latitude for a specific company
+        
+        :param company_id: ID of the company
+        :return: JSON with company location data
+        """
+        try:
+            # Validate API key or session
+            is_valid, result = self._validate_api_key()
+            if not is_valid:
+                response = request.make_response(
+                    json.dumps(result),
+                    headers=[('Content-Type', 'application/json')]
+                )
+                return self._add_cors_headers(response)
+                
+            # Check if company exists
+            company = request.env['res.company'].sudo().browse(company_id)
+            if not company.exists():
+                result = {
+                    "success": False,
+                    "error": f"Company with ID {company_id} not found"
+                }
+                response = request.make_response(
+                    json.dumps(result),
+                    headers=[('Content-Type', 'application/json')]
+                )
+                return self._add_cors_headers(response)
+                
+            # Get location data
+            result = {
+                "success": True,
+                "company_id": company_id,
+                "name": company.name,
+                "latitude": company.latitude if hasattr(company, 'latitude') else None,
+                "longitude": company.longitude if hasattr(company, 'longitude') else None,
+            }
+            
+            response = request.make_response(
+                json.dumps(result),
+                headers=[('Content-Type', 'application/json')]
+            )
+            return self._add_cors_headers(response)
+            
+        except Exception as e:
+            result = {
+                "success": False,
+                "error": str(e),
+                "error_type": type(e).__name__
+            }
+            response = request.make_response(
+                json.dumps(result),
+                headers=[('Content-Type', 'application/json')]
+            )
+            return self._add_cors_headers(response)
+
+    @http.route('/api/company/<int:company_id>/location', type='http', auth='public', methods=['OPTIONS'], csrf=False)
+    def options_company_location(self, company_id, **kw):
+        """Handle OPTIONS request for company location endpoint"""
         return self._handle_options_request()
