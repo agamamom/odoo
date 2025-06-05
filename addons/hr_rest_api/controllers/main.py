@@ -4,12 +4,17 @@ import json
 import logging
 from werkzeug.exceptions import BadRequest, Forbidden
 from werkzeug.wrappers import Response as WerkzeugResponse
-from datetime import datetime
+from datetime import datetime, timedelta
 from odoo import fields
 import io
 from PIL import Image
 import base64
 import binascii
+import jwt
+from odoo.api import Environment
+
+
+from odoo.exceptions import AccessDenied
 
 _logger = logging.getLogger(__name__)
 
@@ -22,49 +27,147 @@ class HrRestApiController(http.Controller):
         - is_valid: boolean indicating if authentication is valid
         - result: the user object if valid, error dict with specific message if not
         """
-        # Get authentication from Basic Auth
-        auth_header = request.httprequest.headers.get('Authorization')
+        # Check for X-API-Key first
         api_key = request.httprequest.headers.get('X-API-Key')
-        
-        if auth_header and auth_header.startswith('Basic '):
-            # Handle Basic Auth
+        if api_key:
             try:
-                auth_decoded = base64.b64decode(auth_header[6:]).decode('utf-8')
-                login, password = auth_decoded.split(':', 1)
-                
-                user = request.env['res.users'].sudo().search([('login', '=', login)], limit=1)
-                if not user:
-                    return False, {"error": "Authentication failed: User not found with provided login"}
-                    
-                if not request.env['res.users'].sudo()._verify_and_update_password(password, user.id):
-                    return False, {"error": "Authentication failed: Invalid password"}
-                    
+                if not hasattr(request, 'env') or request.env is None or not isinstance(request.env, Environment):
+                    _logger.error(f"Invalid request.env: type={type(request.env)}, value={request.env}")
+                    return False, {"error": "Internal error: Invalid environment configuration"}
+
+                api_key_record = request.env['res.users.apikeys'].sudo().search([('key', '=', api_key)], limit=1)
+                if not api_key_record:
+                    _logger.warning("API key not found")
+                    return False, {"error": "Authentication failed: Invalid API key"}
+
+                user = request.env['res.users'].sudo().browse(api_key_record.user_id.id)
+                if not user.exists() or not user.active:
+                    _logger.warning(f"User not found or inactive for API key")
+                    return False, {"error": "Authentication failed: User not found or inactive"}
+
+                _logger.info(f"API key authentication successful for user: {user.login}")
                 return True, user
-            except ValueError:
+            except Exception as e:
+                _logger.error(f"API key auth error: {str(e)}")
+                return False, {"error": f"Authentication error: {str(e)}"}
+
+        # Get authentication from Basic Auth or JWT
+        auth_header = request.httprequest.headers.get('Authorization')
+        
+        # 1. Handle JWT Authentication
+        if auth_header and auth_header.startswith('Bearer '):
+            try:
+                secret_key = request.env['ir.config_parameter'].sudo().get_param('jwt_secret')
+                if not secret_key:
+                    _logger.error("JWT secret key not configured in ir.config_parameter")
+                    return False, {"error": "Server configuration error: JWT secret key not set"}
+
+                token = auth_header[7:]
+                payload = jwt.decode(token, secret_key, algorithms=['HS256'])
+                user_id = payload.get('user_id')
+                # employee_id = payload.get('employee_id')
+                if not user_id or not employee_id:
+                    _logger.warning("JWT validation failed: Missing user_id or employee_id in payload")
+                    return False, {"error": "Authentication failed: Invalid JWT payload"}
+                
+                user = request.env['res.users'].sudo().browse(user_id)
+                if not user.exists():
+                    _logger.warning("JWT validation failed: User ID %s not found", user_id)
+                    return False, {"error": "Authentication failed: User not found"}
+                
+                # employee = request.env['hr.employee'].sudo().search([('user_id', '=', user.id), ('id', '=', employee_id)], limit=1)
+                # if not employee:
+                #     _logger.warning("JWT validation failed: Employee ID %s not found or not linked to user", employee_id)
+                #     return False, {"error": "Authentication failed: Invalid employee ID"}
+                
+                _logger.info("JWT authentication successful for user: %s, employee: %s", user.login, employee_id)
+                return True, user
+            except jwt.ExpiredSignatureError:
+                _logger.warning("JWT validation failed: Token expired")
+                return False, {"error": "Authentication failed: Token expired"}
+            except jwt.InvalidTokenError as e:
+                _logger.warning("JWT validation failed: %s", str(e))
+                return False, {"error": "Authentication failed: Invalid token"}
+            except Exception as e:
+                _logger.error("JWT authentication error: %s", str(e))
+                return False, {"error": f"Authentication error: {str(e)}"}
+
+        # 2. Handle Basic Authentication
+        if auth_header and auth_header.startswith('Basic '):
+            try:
+                if not hasattr(request, 'env') or request.env is None or not isinstance(request.env, Environment):
+                    _logger.error(f"Invalid request.env: type={type(request.env)}, value={request.env}")
+                    return False, {"error": "Internal error: Invalid environment configuration"}
+
+                _logger.debug(f"Raw auth_header: {auth_header}")
+                auth_decoded = base64.b64decode(auth_header[6:].strip()).decode('utf-8')
+                login, password = auth_decoded.split(':', 1)
+                _logger.debug(f"Basic Auth attempt with login: {login}")
+                _logger.debug(f"Password length: {len(password)}")
+                
+                try:
+                    user = request.env['res.users'].sudo().search([('login', '=', login)], limit=1)
+                    if not user:
+                        _logger.warning(f"Basic Auth failed: User not found with login {login}")
+                        return False, {"error": "Authentication failed: Invalid login or password"}
+                    
+                    if not user.active:
+                        _logger.warning(f"Basic Auth failed: User {login} is not active")
+                        return False, {"error": "Authentication failed: User account is inactive"}
+                    
+                    _logger.debug(f"User ID: {user.id}, Has API access: {user.has_group('base.group_user')}")
+                    
+                    # Method 1: Try _check_credentials
+                    try:
+                        user.sudo()._check_credentials(password)
+                        _logger.info(f"Basic Auth successful for user: {user.login} (using _check_credentials)")
+                        return True, user
+                    except Exception as cred_error:
+                        _logger.debug(f"_check_credentials failed: {str(cred_error)}")
+                    
+                    # Method 2: Try direct authenticate method
+                    try:
+                        db_name = request.env.cr.dbname
+                        uid = request.env['res.users'].authenticate(db_name, login, password)
+                        if uid:
+                            authenticated_user = request.env['res.users'].sudo().browse(uid)
+                            _logger.info(f"Basic Auth successful for user: {authenticated_user.login} (using authenticate)")
+                            return True, authenticated_user
+                        else:
+                            _logger.debug(f"authenticate method returned: {uid}")
+                    except Exception as auth_error:
+                        _logger.debug(f"authenticate method failed: {str(auth_error)}")
+                    
+                    # Method 3: Check if it's an API key instead of password
+                    try:
+                        api_keys = request.env['res.users.apikeys'].sudo().search([('user_id', '=', user.id)])
+                        if api_keys:
+                            _logger.debug(f"User has {len(api_keys)} API keys")
+                            for api_key in api_keys:
+                                if api_key.key and api_key.key == password:
+                                    _logger.info(f"Basic Auth successful for user: {user.login} (using API key)")
+                                    return True, user
+                        else:
+                            _logger.debug("User has no API keys")
+                    except Exception as api_error:
+                        _logger.debug(f"API key check failed: {str(api_error)}")
+                    
+                    _logger.warning(f"Basic Auth failed: All authentication methods failed for user {login}")
+                    return False, {"error": "Authentication failed: Invalid login or password"}
+                        
+                except Exception as auth_error:
+                    _logger.error(f"Basic Auth authentication error for user {login}: {str(auth_error)}")
+                    return False, {"error": "Authentication failed: Invalid login or password"}
+                        
+            except ValueError as ve:
+                _logger.warning(f"Basic Auth failed: Invalid format - {str(ve)}")
                 return False, {"error": "Authentication failed: Invalid Basic Auth format (should be 'login:password')"}
             except Exception as e:
-                _logger.warning("Error validating Basic Auth: %s", str(e))
+                _logger.error(f"Basic Auth decoding error: {str(e)}")
                 return False, {"error": f"Authentication error: {str(e)}"}
-        elif api_key:
-            # For backward compatibility, check if API key matches a user token
-            user = request.env['res.users'].sudo().search([('oauth_access_token', '=', api_key)], limit=1)
-            if user:
-                return True, user
-            else:
-                return False, {"error": "Authentication failed: Invalid API key"}
-        elif request.session.uid:
-            # Check if user is already authenticated in the session
-            try:
-                user = request.env['res.users'].sudo().browse(request.session.uid)
-                if user.exists():
-                    return True, user
-                else:
-                    return False, {"error": "Session authentication failed: User no longer exists"}
-            except Exception as e:
-                return False, {"error": f"Session authentication error: {str(e)}"}
         
-        # If we got here, no authentication method was provided
-        return False, {"error": "Authentication required: Missing Basic Auth header or API key"}
+        _logger.warning("Authentication failed: No valid authentication method provided")
+        return False, {"error": "Authentication required: missing Authorization header"}
     
     def _add_cors_headers(self, response):
         """Add CORS headers to the response"""
@@ -1314,12 +1417,14 @@ class HrRestApiController(http.Controller):
     @http.route('/api/hr/employees/find_by_email', type='http', auth='public', methods=['POST'], csrf=False)
     def find_employee_by_email(self, **kw):
         """Tìm employee theo work_email, trả về id nếu tồn tại"""
-        # Validate API key
-        # is_valid, user = self._validate_api_key()
-        # if not is_valid:
-        #     response = request.make_response(json.dumps(user), headers=[('Content-Type', 'application/json')])
-        #     return self._add_cors_headers(response)
 
+        # Kiểm tra xác thực
+        is_valid, result = self._validate_api_key()
+        if not is_valid:
+            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+        
+        user = result
         # Parse input
         try:
             data = json.loads(request.httprequest.data.decode('utf-8'))
@@ -1332,19 +1437,41 @@ class HrRestApiController(http.Controller):
             return self._add_cors_headers(response)
 
         # Tìm employee theo work_email
-        employee = request.env['res.users'].sudo().search([('login', '=', work_email)], limit=1)
-        if employee:
-            result = {
-                'success': True, 
+        employee = request.env['hr.employee'].sudo().search([('work_email', '=', work_email)], limit=1)
+        if not employee:
+            result = {'success': False, 'error': 'No employee found with this work_email'}
+            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+        
+        # Tạo JWT token
+        secret_key = request.env['ir.config_parameter'].sudo().get_param('jwt_secret')
+        if not secret_key:
+            _logger.error("JWT secret key not configured in ir.config_parameter")
+            result = {'success': False, 'error': 'Server configuration error: JWT secret key not set'}
+            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+        
+        try:
+            token = jwt.encode({
+                'user_id': user.id,
                 'employee_id': employee.id,
                 'company_id': employee.company_id.id if employee.company_id else None,
-                'company_name': employee.company_id.name if employee.company_id else None
-            }
-        else:
-            result = {'success': False, 'error': 'No employee found with this work_email'}
+                'company_name': employee.company_id.name if employee.company_id else None,
+                'exp': datetime.utcnow() + timedelta(hours=1)
+            }, secret_key, algorithm='HS256')
+        except Exception as e:
+            _logger.error("Error generating JWT token: %s", str(e))
+            result = {'success': False, 'error': f'Failed to generate token: {str(e)}'}
+            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+
+        result = {
+            'success': True,
+            'token': token
+        }
         response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
         return self._add_cors_headers(response)
-
+    
     @http.route('/api/hr/employees/find_by_email', type='http', auth='public', methods=['OPTIONS'], csrf=False)
     def options_find_employee_by_email(self, **kw):
         """Handle OPTIONS request for find_by_email endpoint"""

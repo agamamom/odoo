@@ -7,4 +7,5 @@ from . import insurance
 from . import project
 from . import project_milestone
 from . import project_config
-from . import employee_payroll 
+from . import employee_payroll
+from . import employee_self_service_api 

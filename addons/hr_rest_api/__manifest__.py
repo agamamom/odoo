@@ -28,4 +28,7 @@ Features include:
     'application': False,
     'auto_install': False,
     'license': 'LGPL-3',
+    'external_dependencies': {
+        'python': ['PyJWT'],
+    },
 } 
