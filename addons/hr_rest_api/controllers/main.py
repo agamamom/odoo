@@ -27,6 +27,48 @@ class HrRestApiController(http.Controller):
         - is_valid: boolean indicating if authentication is valid
         - result: the user object if valid, error dict with specific message if not
         """
+        
+        # Get authentication from Basic Auth or JWT
+        auth_header = request.httprequest.headers.get('Authorization')
+        _logger.warning("API key not found: %s", auth_header)
+        # 1. Handle JWT Authentication
+        if auth_header and auth_header.startswith('Bearer '):
+            try:
+                secret_key = request.env['ir.config_parameter'].sudo().get_param('jwt_secret')
+                if not secret_key:
+                    _logger.error("JWT secret key not configured in ir.config_parameter")
+                    return False, {"error": "Server configuration error: JWT secret key not set"}
+
+                token = auth_header[7:]
+                payload = jwt.decode(token, secret_key, algorithms=['HS256'])
+                user_id = payload.get('user_id')
+                # employee_id = payload.get('employee_id')
+                # if not user_id or not employee_id:
+                #     _logger.warning("JWT validation failed: Missing user_id or employee_id in payload")
+                #     return False, {"error": "Authentication failed: Invalid JWT payload"}
+                
+                user = request.env['res.users'].sudo().browse(user_id)
+                if not user.exists():
+                    _logger.warning("JWT validation failed: User ID %s not found", user_id)
+                    return False, {"error": "Authentication failed: User not found"}
+                
+                # employee = request.env['hr.employee'].sudo().search([('user_id', '=', user.id), ('id', '=', employee_id)], limit=1)
+                # if not employee:
+                #     _logger.warning("JWT validation failed: Employee ID %s not found or not linked to user", employee_id)
+                #     return False, {"error": "Authentication failed: Invalid employee ID"}
+                
+                
+                return True, user
+            except jwt.ExpiredSignatureError:
+                _logger.warning("JWT validation failed: Token expired")
+                return False, {"error": "Authentication failed: Token expired"}
+            except jwt.InvalidTokenError as e:
+                _logger.warning("JWT validation failed: %s", str(e))
+                return False, {"error": "Authentication failed: Invalid token"}
+            except Exception as e:
+                _logger.error("JWT authentication error: %s", str(e))
+                return False, {"error": f"Authentication error xx: {str(e)}"}
+
         # Check for X-API-Key first
         api_key = request.httprequest.headers.get('X-API-Key')
         if api_key:
@@ -51,46 +93,6 @@ class HrRestApiController(http.Controller):
                 _logger.error(f"API key auth error: {str(e)}")
                 return False, {"error": f"Authentication error: {str(e)}"}
 
-        # Get authentication from Basic Auth or JWT
-        auth_header = request.httprequest.headers.get('Authorization')
-        
-        # 1. Handle JWT Authentication
-        if auth_header and auth_header.startswith('Bearer '):
-            try:
-                secret_key = request.env['ir.config_parameter'].sudo().get_param('jwt_secret')
-                if not secret_key:
-                    _logger.error("JWT secret key not configured in ir.config_parameter")
-                    return False, {"error": "Server configuration error: JWT secret key not set"}
-
-                token = auth_header[7:]
-                payload = jwt.decode(token, secret_key, algorithms=['HS256'])
-                user_id = payload.get('user_id')
-                # employee_id = payload.get('employee_id')
-                if not user_id or not employee_id:
-                    _logger.warning("JWT validation failed: Missing user_id or employee_id in payload")
-                    return False, {"error": "Authentication failed: Invalid JWT payload"}
-                
-                user = request.env['res.users'].sudo().browse(user_id)
-                if not user.exists():
-                    _logger.warning("JWT validation failed: User ID %s not found", user_id)
-                    return False, {"error": "Authentication failed: User not found"}
-                
-                # employee = request.env['hr.employee'].sudo().search([('user_id', '=', user.id), ('id', '=', employee_id)], limit=1)
-                # if not employee:
-                #     _logger.warning("JWT validation failed: Employee ID %s not found or not linked to user", employee_id)
-                #     return False, {"error": "Authentication failed: Invalid employee ID"}
-                
-                _logger.info("JWT authentication successful for user: %s, employee: %s", user.login, employee_id)
-                return True, user
-            except jwt.ExpiredSignatureError:
-                _logger.warning("JWT validation failed: Token expired")
-                return False, {"error": "Authentication failed: Token expired"}
-            except jwt.InvalidTokenError as e:
-                _logger.warning("JWT validation failed: %s", str(e))
-                return False, {"error": "Authentication failed: Invalid token"}
-            except Exception as e:
-                _logger.error("JWT authentication error: %s", str(e))
-                return False, {"error": f"Authentication error: {str(e)}"}
 
         # 2. Handle Basic Authentication
         if auth_header and auth_header.startswith('Basic '):
@@ -466,41 +468,30 @@ class HrRestApiController(http.Controller):
     @http.route('/api/hr/employees', type='json', auth='public', methods=['POST'], csrf=False)
     def create_employee(self, **kw):
         """Create a new employee"""
-        try:
-            data = json.loads(request.httprequest.data.decode('utf-8'))
-        except Exception:
-            data = request.jsonrequest
+        # For type='json' routes, kw already contains the parsed JSON data
+        data = kw
+        if not data:
+            return {'success': False, 'error': 'No data provided in request body'}
         
         required_fields = ['name']
         for field in required_fields:
             if field not in data:
-                response = request.make_response(
-                    json.dumps({
-                        'success': False,
-                        'error': f'Missing required field: {field}'
-                    }),
-                    headers=[('Content-Type', 'application/json')]
-                )
-                return self._add_cors_headers(response)
+                return {'success': False, 'error': f'Missing required field: {field}'}
         
         result = self._handle_create(
             model='hr.employee',
             data=data
         )
         
-        response = request.make_response(
-            json.dumps(result),
-            headers=[('Content-Type', 'application/json')]
-        )
-        return self._add_cors_headers(response)
+        return result
     
     @http.route('/api/hr/employees/<int:employee_id>', type='json', auth='public', methods=['PUT'], csrf=False)
     def update_employee(self, employee_id, **kw):
         """Update an employee"""
-        try:
-            data = json.loads(request.httprequest.data.decode('utf-8'))
-        except Exception:
-            data = request.jsonrequest
+        # For type='json' routes, kw already contains the parsed JSON data
+        data = kw
+        if not data:
+            return {'success': False, 'error': 'No data provided in request body'}
         
         result = self._handle_update(
             model='hr.employee',
@@ -508,11 +499,7 @@ class HrRestApiController(http.Controller):
             data=data
         )
         
-        response = request.make_response(
-            json.dumps(result),
-            headers=[('Content-Type', 'application/json')]
-        )
-        return self._add_cors_headers(response)
+        return result
     
     @http.route('/api/hr/employees/<int:employee_id>', type='http', auth='public', methods=['DELETE'], csrf=False)
     def delete_employee(self, employee_id, **kw):
@@ -581,41 +568,30 @@ class HrRestApiController(http.Controller):
     @http.route('/api/hr/departments', type='json', auth='public', methods=['POST'], csrf=False)
     def create_department(self, **kw):
         """Create a new department"""
-        try:
-            data = json.loads(request.httprequest.data.decode('utf-8'))
-        except Exception:
-            data = request.jsonrequest
+        # For type='json' routes, kw already contains the parsed JSON data
+        data = kw
+        if not data:
+            return {'success': False, 'error': 'No data provided in request body'}
         
         required_fields = ['name']
         for field in required_fields:
             if field not in data:
-                response = request.make_response(
-                    json.dumps({
-                        'success': False,
-                        'error': f'Missing required field: {field}'
-                    }),
-                    headers=[('Content-Type', 'application/json')]
-                )
-                return self._add_cors_headers(response)
+                return {'success': False, 'error': f'Missing required field: {field}'}
         
         result = self._handle_create(
             model='hr.department',
             data=data
         )
         
-        response = request.make_response(
-            json.dumps(result),
-            headers=[('Content-Type', 'application/json')]
-        )
-        return self._add_cors_headers(response)
+        return result
     
     @http.route('/api/hr/departments/<int:department_id>', type='json', auth='public', methods=['PUT'], csrf=False)
     def update_department(self, department_id, **kw):
         """Update a department"""
-        try:
-            data = json.loads(request.httprequest.data.decode('utf-8'))
-        except Exception:
-            data = request.jsonrequest
+        # For type='json' routes, kw already contains the parsed JSON data
+        data = kw
+        if not data:
+            return {'success': False, 'error': 'No data provided in request body'}
         
         result = self._handle_update(
             model='hr.department',
@@ -623,11 +599,7 @@ class HrRestApiController(http.Controller):
             data=data
         )
         
-        response = request.make_response(
-            json.dumps(result),
-            headers=[('Content-Type', 'application/json')]
-        )
-        return self._add_cors_headers(response)
+        return result
     
     @http.route('/api/hr/departments/<int:department_id>', type='http', auth='public', methods=['DELETE'], csrf=False)
     def delete_department(self, department_id, **kw):
@@ -698,41 +670,30 @@ class HrRestApiController(http.Controller):
     @http.route('/api/hr/jobs', type='json', auth='public', methods=['POST'], csrf=False)
     def create_job(self, **kw):
         """Create a new job position"""
-        try:
-            data = json.loads(request.httprequest.data.decode('utf-8'))
-        except Exception:
-            data = request.jsonrequest
+        # For type='json' routes, kw already contains the parsed JSON data
+        data = kw
+        if not data:
+            return {'success': False, 'error': 'No data provided in request body'}
         
         required_fields = ['name']
         for field in required_fields:
             if field not in data:
-                response = request.make_response(
-                    json.dumps({
-                        'success': False,
-                        'error': f'Missing required field: {field}'
-                    }),
-                    headers=[('Content-Type', 'application/json')]
-                )
-                return self._add_cors_headers(response)
+                return {'success': False, 'error': f'Missing required field: {field}'}
         
         result = self._handle_create(
             model='hr.job',
             data=data
         )
         
-        response = request.make_response(
-            json.dumps(result),
-            headers=[('Content-Type', 'application/json')]
-        )
-        return self._add_cors_headers(response)
+        return result
     
     @http.route('/api/hr/jobs/<int:job_id>', type='json', auth='public', methods=['PUT'], csrf=False)
     def update_job(self, job_id, **kw):
         """Update a job position"""
-        try:
-            data = json.loads(request.httprequest.data.decode('utf-8'))
-        except Exception:
-            data = request.jsonrequest
+        # For type='json' routes, kw already contains the parsed JSON data
+        data = kw
+        if not data:
+            return {'success': False, 'error': 'No data provided in request body'}
         
         result = self._handle_update(
             model='hr.job',
@@ -740,11 +701,7 @@ class HrRestApiController(http.Controller):
             data=data
         )
         
-        response = request.make_response(
-            json.dumps(result),
-            headers=[('Content-Type', 'application/json')]
-        )
-        return self._add_cors_headers(response)
+        return result
     
     @http.route('/api/hr/jobs/<int:job_id>', type='http', auth='public', methods=['DELETE'], csrf=False)
     def delete_job(self, job_id, **kw):
@@ -1416,7 +1373,9 @@ class HrRestApiController(http.Controller):
 
     @http.route('/api/hr/employees/find_by_email', type='http', auth='public', methods=['POST'], csrf=False)
     def find_employee_by_email(self, **kw):
-        """Tìm employee theo work_email, trả về id nếu tồn tại"""
+        """Find employee by email and generate a JWT token"""
+        if request.httprequest.method == 'OPTIONS':
+            return self._handle_options_request()
 
         # Kiểm tra xác thực
         is_valid, result = self._validate_api_key()
@@ -1426,10 +1385,21 @@ class HrRestApiController(http.Controller):
         
         user = result
         # Parse input
+        data = {}
         try:
-            data = json.loads(request.httprequest.data.decode('utf-8'))
-        except Exception:
-            data = request.jsonrequest
+            if request.httprequest.data:
+                data = json.loads(request.httprequest.data.decode('utf-8'))
+            elif hasattr(request, 'params'):
+                data = request.params
+        except json.JSONDecodeError:
+            result = {'success': False, 'error': 'Invalid JSON data in request body'}
+            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+        except Exception as e:
+            result = {'success': False, 'error': f'Error parsing request data: {str(e)}'}
+            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
+            return self._add_cors_headers(response)
+        
         work_email = data.get('work_email')
         if not work_email:
             result = {'success': False, 'error': 'Missing work_email in request body'}
@@ -1494,20 +1464,17 @@ class HrRestApiController(http.Controller):
         # Validate API key
         is_valid, user = self._validate_api_key()
         if not is_valid:
-            response = request.make_response(json.dumps(user), headers=[('Content-Type', 'application/json')])
-            return self._add_cors_headers(response)
+            return {'success': False, 'error': user.get('error', 'Authentication failed')}
 
-        try:
-            data = json.loads(request.httprequest.data.decode('utf-8'))
-        except Exception:
-            data = request.jsonrequest
+        # For type='json' routes, Odoo automatically parses the JSON and makes it available in kw
+        data = kw
+        if not data:
+            return {'success': False, 'error': 'No data provided in request body'}
 
         employee_id = data.get('employee_id')
         action = data.get('action', 'check_in')
         if not employee_id:
-            result = {'success': False, 'error': 'Missing employee_id'}
-            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
-            return self._add_cors_headers(response)
+            return {'success': False, 'error': 'Missing employee_id'}
 
         # Lấy thông tin bổ sung từ request hoặc client gửi lên
         ip_address = data.get('in_ip_address') or request.httprequest.remote_addr
@@ -1549,14 +1516,10 @@ class HrRestApiController(http.Controller):
                 if data.get(k):
                     vals[k] = data.get(k)
         else:
-            result = {'success': False, 'error': 'Invalid action'}
-            response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
-            return self._add_cors_headers(response)
+            return {'success': False, 'error': 'Invalid action'}
 
         attendance = request.env['hr.attendance'].sudo().create(vals)
-        result = {'success': True, 'attendance_id': attendance.id}
-        response = request.make_response(json.dumps(result), headers=[('Content-Type', 'application/json')])
-        return self._add_cors_headers(response)
+        return {'success': True, 'attendance_id': attendance.id}
 
     @http.route('/api/hr/attendances/confirm', type='http', auth='public', methods=['OPTIONS'], csrf=False)
     def options_attendance_confirm(self, **kw):
@@ -2326,3 +2289,27 @@ class HrRestApiController(http.Controller):
     def options_company_location(self, company_id, **kw):
         """Handle OPTIONS request for company location endpoint"""
         return self._handle_options_request()
+
+    def _get_json_data(self):
+        """Helper method to safely get JSON data from request
+        
+        For type='json' routes, data should be available in **kw of the route method.
+        For http routes that need to parse JSON manually, this provides a safe way to do so.
+        """
+        # For type='json' routes, kw will already contain the parsed JSON
+        if hasattr(request, 'jsonrequest') and request.jsonrequest:
+            return request.jsonrequest
+        
+        # For type='http' routes, try to parse JSON from the request body
+        if request.httprequest.data:
+            try:
+                return json.loads(request.httprequest.data.decode('utf-8'))
+            except json.JSONDecodeError:
+                _logger.warning("Invalid JSON data in request body")
+        
+        # Fallback to form-encoded params
+        if hasattr(request, 'params'):
+            return request.params
+        
+        # Last resort, return empty dict
+        return {}

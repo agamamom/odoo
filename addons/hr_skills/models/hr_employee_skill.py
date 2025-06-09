@@ -20,7 +20,13 @@ class EmployeeSkill(models.Model):
                                     required=True, ondelete='cascade')
     level_progress = fields.Integer(related='skill_level_id.level_progress')
     color = fields.Integer(related="skill_type_id.color")
-
+    skill_name = fields.Char(string='Tên kỹ năng')
+    skill_level = fields.Selection([('basic', 'Cơ bản'), ('advanced', 'Nâng cao')], string='Cấp độ')
+    certificate = fields.Char(string='Chứng chỉ')
+    certificate_issue_date = fields.Date(string='Ngày cấp')
+    certificate_expiry_date = fields.Date(string='Ngày hết hạn')
+    note = fields.Text(string='Ghi chú')
+    
     _sql_constraints = [
         ('_unique_skill', 'unique (employee_id, skill_id)', "Two levels for the same skill is not allowed"),
     ]

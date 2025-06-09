@@ -238,7 +238,7 @@ class HrEmployeePrivate(models.Model):
     )
 
     # New fields for skills
-    skill_ids = fields.One2many(
+    skill_employee_ids = fields.One2many(
         'hr.employee.skill', 'employee_id', string='Kỹ năng & Chứng chỉ', groups="hr.group_hr_user"
     )
 
@@ -272,7 +272,7 @@ class HrEmployeePrivate(models.Model):
     )
 
     # New fields for contracts
-    contract_ids = fields.One2many(
+    contract_employee_ids = fields.One2many(
         'hr.employee.contract', 'employee_id', string='Hợp đồng lao động', groups="hr.group_hr_user"
     )
 
@@ -835,7 +835,7 @@ class HrEmployeePrivate(models.Model):
             'certificate_issue_date': skill.certificate_issue_date,
             'certificate_expiry_date': skill.certificate_expiry_date,
             'note': skill.note,
-        } for skill in self.skill_ids]
+        } for skill in self.skill_employee_ids]
 
     def has_skill_for_task(self, required_skills):
         """
@@ -845,7 +845,7 @@ class HrEmployeePrivate(models.Model):
         self.ensure_one()
         for req in required_skills:
             found = False
-            for skill in self.skill_ids:
+            for skill in self.skill_employee_ids:
                 if skill.skill_name == req['skill_name'] and skill.skill_level in [req['skill_level'], 'expert']:
                     found = True
                     break
@@ -1210,24 +1210,24 @@ class HrEmployeePrivate(models.Model):
     def get_contract_summary(self):
         self.ensure_one()
         return [{
-            'contract_type': c.contract_type,
+            'contract_type': c.contract_type_id,
             'sign_date': c.sign_date,
             'expiry_date': c.expiry_date,
             'salary': c.salary,
             'allowance': c.allowance,
             'special_terms': c.special_terms,
             'state': c.state,
-        } for c in self.contract_ids]
+        } for c in self.contract_employee_ids]
 
     def check_contract_expiry(self):
         self.ensure_one()
-        for c in self.contract_ids:
+        for c in self.contract_employee_ids:
             if c.state == 'active' and c.expiry_date and c.expiry_date <= fields.Date.today():
                 c.state = 'expired'
 
     def contract_expiry_reminder(self):
         for emp in self.search([]):
-            for c in emp.contract_ids:
+            for c in emp.contract_employee_ids:
                 if c.state == 'active' and c.expiry_date:
                     days_left = (c.expiry_date - fields.Date.today()).days
                     if 0 <= days_left <= 30:

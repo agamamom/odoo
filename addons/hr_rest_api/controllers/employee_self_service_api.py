@@ -16,6 +16,7 @@ import uuid
 import jwt
 from odoo.exceptions import AccessDenied
 from odoo.api import Environment
+import traceback
 
 
 _logger = logging.getLogger(__name__)
@@ -90,132 +91,253 @@ class EmployeeSelfServiceAPIController(HrRestApiController):
 
     # ===== PERSONAL INFORMATION ENDPOINTS =====
     
-    @http.route('/api/employee/profile', type='http', auth='public', methods=['GET', 'OPTIONS'], csrf=False)
-    def get_employee_profile_http(self, **kw):
-        """Get authenticated employee's profile information via HTTP"""
-        if request.httprequest.method == 'OPTIONS':
-            return self._handle_options_request()
+    # @http.route('/api/employee/profile', type='http', auth='public', methods=['GET', 'OPTIONS'], csrf=False)
+    # def get_employee_profile_http(self, **kw):
+    #     """Get authenticated employee's profile information via HTTP"""
+    #     _logger.info("HTTP Profile endpoint called with method: %s, params: %s", 
+    #                 request.httprequest.method, kw)
         
-        # Default response headers
-        headers = [('Content-Type', 'application/json')]
+    #     if request.httprequest.method == 'OPTIONS':
+    #         _logger.info("Handling OPTIONS request for HTTP Profile endpoint")
+    #         return self._handle_options_request()
         
-        try:
-            # Check authentication - either through session or API key
-            user = request.env.user
+    #     # Default response headers
+    #     headers = [('Content-Type', 'application/json')]
+        
+    #     # Debug info to track the request context
+    #     debug_info = {
+    #         'request_method': request.httprequest.method,
+    #         'request_path': request.httprequest.path,
+    #         'request_query_string': request.httprequest.query_string.decode('utf-8') if request.httprequest.query_string else '',
+    #         'request_url': request.httprequest.url,
+    #         'request_headers': dict(request.httprequest.headers),
+    #         'request_remote_addr': request.httprequest.remote_addr,
+    #     }
+        
+    #     # Log detailed request info
+    #     for key, value in debug_info.items():
+    #         if key == 'request_headers':
+    #             # Clean sensitive headers
+    #             safe_headers = {k: (v if k.lower() not in ['cookie', 'authorization'] 
+    #                               else f"{v[:10]}...") for k, v in value.items()}
+    #             _logger.info("HTTP Profile debug - %s: %s", key, safe_headers)
+    #         else:
+    #             _logger.info("HTTP Profile debug - %s: %s", key, value)
+        
+    #     try:
+    #         # Log request headers (excluding sensitive data)
+    #         safe_headers = {k: v for k, v in request.httprequest.headers.items() 
+    #                       if k.lower() not in ['cookie', 'authorization'] or k.lower() == 'authorization' and v.startswith('Basic ')}
+    #         if 'authorization' in safe_headers:
+    #             safe_headers['authorization'] = 'Basic *****'
+    #         _logger.info("HTTP Profile request headers: %s", safe_headers)
             
-            # If not authenticated through session, try API key
-            if user.id == request.env.ref('base.public_user').id:
-                # Get authentication from Basic Auth or API key
-                auth_header = request.httprequest.headers.get('Authorization')
-                api_key = request.httprequest.headers.get('X-API-Key')
+    #         # Check authentication - either through session or API key
+    #         user = request.env.user
+    #         _logger.info("Initial user authentication: User ID=%s, Login=%s", user.id, user.login)
+            
+    #         # If not authenticated through session, try API key
+    #         if user.id == request.env.ref('base.public_user').id:
+    #             _logger.info("User is public, attempting API key authentication")
+    #             # Get authentication from Basic Auth or API key
+    #             auth_header = request.httprequest.headers.get('Authorization')
+    #             api_key = request.httprequest.headers.get('X-API-Key')
                 
-                if not auth_header and not api_key:
-                    result = {
-                        'success': False, 
-                        'error': 'Authentication required. Please provide an API key or login.'
-                    }
-                    response = request.make_response(json.dumps(result), headers=headers)
-                    return self._add_cors_headers(response)
+    #             _logger.info("Authentication headers - Authorization: %s, X-API-Key: %s", 
+    #                         "Present" if auth_header else "Not present",
+    #                         "Present" if api_key else "Not present")
+                
+    #             if not auth_header and not api_key:
+    #                 _logger.warning("No authentication credentials provided (no API key or Basic Auth)")
+    #                 result = {
+    #                     'success': False, 
+    #                     'error': 'Authentication required. Please provide an API key or login.',
+    #                     'status_code': 401,
+    #                     'debug': {
+    #                         'request_url': request.httprequest.url,
+    #                         'request_method': request.httprequest.method,
+    #                         'missing_headers': ['Authorization', 'X-API-Key']
+    #                     }
+    #                 }
+    #                 response = request.make_response(json.dumps(result), headers=headers, status=401)
+    #                 return self._add_cors_headers(response)
                     
-                # Validate using parent class method
-                is_valid, user_result = self._validate_api_key()
-                if not is_valid:
-                    result = {
-                        'success': False,
-                        'error': user_result.get('error', 'Authentication failed'),
-                    }
-                    response = request.make_response(json.dumps(result), headers=headers)
-                    return self._add_cors_headers(response)
+    #             # Validate using parent class method
+    #             _logger.info("Validating API key")
+    #             is_valid, user_result = self._validate_api_key()
+    #             if not is_valid:
+    #                 _logger.warning("API key validation failed: %s", user_result)
+    #                 result = {
+    #                     'success': False,
+    #                     'error': user_result.get('error', 'Authentication failed'),
+    #                     'status_code': 401,
+    #                     'debug': {
+    #                         'auth_error': user_result.get('error'),
+    #                         'auth_header_present': bool(auth_header),
+    #                         'api_key_present': bool(api_key)
+    #                     }
+    #                 }
+    #                 response = request.make_response(json.dumps(result), headers=headers, status=401)
+    #                 return self._add_cors_headers(response)
                     
-                user = user_result
+    #             _logger.info("API key validation successful, authenticated as User ID=%s, Login=%s", 
+    #                          user_result.id, user_result.login)    
+    #             user = user_result
             
-            # Now that we have a user, get the associated employee
-            employee = request.env['hr.employee'].sudo().search([('user_id', '=', user.id)], limit=1)
-            if not employee:
-                result = {
-                    'success': False,
-                    'error': 'User is not associated with an employee record.'
-                }
-                response = request.make_response(json.dumps(result), headers=headers)
-                return self._add_cors_headers(response)
+    #         # Now that we have a user, get the associated employee
+    #         _logger.info("Looking up employee record for user ID=%s", user.id)
+    #         employee = request.env['hr.employee'].sudo().search([('user_id', '=', user.id)], limit=1)
+    #         if not employee:
+    #             _logger.warning("No employee record found for user ID=%s", user.id)
+    #             result = {
+    #                 'success': False,
+    #                 'error': 'User is not associated with an employee record.',
+    #                 'status_code': 404,
+    #                 'debug': {
+    #                     'user_id': user.id,
+    #                     'login': user.login,
+    #                     'search_criteria': {'user_id': user.id}
+    #                 }
+    #             }
+    #             response = request.make_response(json.dumps(result), headers=headers, status=404)
+    #             return self._add_cors_headers(response)
             
-            # Employee found, return profile data
-            result = {
-                "success": True,
-                "data": {
-                    "id": employee.id,
-                    "name": employee.name or "",
-                    "job_title": employee.job_title or "",
-                    "work_email": employee.work_email or "",
-                    "work_phone": employee.work_phone or "",
-                    "mobile_phone": employee.mobile_phone or "",
-                    "department_id": employee.department_id.id if employee.department_id else False,
-                    "department_name": employee.department_id.name if employee.department_id else "",
-                    "job_id": employee.job_id.id if employee.job_id else False,
-                    "job_position": employee.job_id.name if employee.job_id else "",
-                    "parent_id": employee.parent_id.id if employee.parent_id else False,
-                    "manager_name": employee.parent_id.name if employee.parent_id else "",
-                    "coach_id": employee.coach_id.id if employee.coach_id else False,
-                    "coach_name": employee.coach_id.name if employee.coach_id else "",
-                    "work_location_id": employee.work_location_id.id if employee.work_location_id else False,
-                    "work_location": employee.work_location_id.name if employee.work_location_id else "",
-                    "company_id": employee.company_id.id if employee.company_id else False,
-                    "company_name": employee.company_id.name if employee.company_id else "",
-                    "private_email": employee.private_email or "",
-                    "has_photo": bool(employee.image_1920),
-                }
-            }
+    #         _logger.info("Employee found: ID=%s, Name=%s", employee.id, employee.name)
             
-            response = request.make_response(json.dumps(result), headers=headers)
-            return self._add_cors_headers(response)
+    #         # Employee found, return profile data
+    #         result = {
+    #             "success": True,
+    #             "data": {
+    #                 "id": employee.id,
+    #                 "name": employee.name or "",
+    #                 "job_title": employee.job_title or "",
+    #                 "work_email": employee.work_email or "",
+    #                 "work_phone": employee.work_phone or "",
+    #                 "mobile_phone": employee.mobile_phone or "",
+    #                 "department_id": employee.department_id.id if employee.department_id else False,
+    #                 "department_name": employee.department_id.name if employee.department_id else "",
+    #                 "job_id": employee.job_id.id if employee.job_id else False,
+    #                 "job_position": employee.job_id.name if employee.job_id else "",
+    #                 "parent_id": employee.parent_id.id if employee.parent_id else False,
+    #                 "manager_name": employee.parent_id.name if employee.parent_id else "",
+    #                 "coach_id": employee.coach_id.id if employee.coach_id else False,
+    #                 "coach_name": employee.coach_id.name if employee.coach_id else "",
+    #                 "work_location_id": employee.work_location_id.id if employee.work_location_id else False,
+    #                 "work_location": employee.work_location_id.name if employee.work_location_id else "",
+    #                 "company_id": employee.company_id.id if employee.company_id else False,
+    #                 "company_name": employee.company_id.name if employee.company_id else "",
+    #                 "private_email": employee.private_email or "",
+    #                 "has_photo": bool(employee.image_1920),
+    #             }
+    #         }
             
-        except Exception as e:
-            _logger.error("Error in get_employee_profile_http: %s", str(e), exc_info=True)
-            result = {
-                'success': False,
-                'error': 'Server error occurred while processing your request.',
-                'debug': str(e) if request.env.user.has_group('base.group_system') else None
-            }
-            response = request.make_response(json.dumps(result), headers=headers, status=500)
-            return self._add_cors_headers(response)
+    #         _logger.info("HTTP Profile endpoint completed successfully for employee ID=%s", employee.id)
+    #         response = request.make_response(json.dumps(result), headers=headers)
+    #         return self._add_cors_headers(response)
+            
+    #     except Exception as e:
+    #         _logger.error("Error in get_employee_profile_http: %s", str(e), exc_info=True)
+    #         result = {
+    #             'success': False,
+    #             'error': 'Server error occurred while processing your request.',
+    #             'status_code': 500,
+    #             'debug': {
+    #                 'exception': str(e),
+    #                 'traceback': traceback.format_exc(),
+    #                 'request_url': request.httprequest.url,
+    #                 'request_method': request.httprequest.method,
+    #                 'user_id': getattr(request.env.user, 'id', None),
+    #                 'user_login': getattr(request.env.user, 'login', None)
+    #             } if request.env.user.has_group('base.group_system') else None
+    #         }
+    #         response = request.make_response(json.dumps(result), headers=headers, status=500)
+    #         return self._add_cors_headers(response)
     
     # @http.route('/api/employee/profile', type='json', auth='public', methods=['GET', 'OPTIONS'])
     # def get_employee_profile(self, **kw):
     #     """Get authenticated employee's profile information via JSON-RPC"""
+    #     _logger.info("JSON Profile endpoint called with params: %s", kw)
+        
+    #     # Debug info to track the request context
+    #     debug_info = {
+    #         'request_method': request.httprequest.method,
+    #         'request_path': request.httprequest.path,
+    #         'request_url': request.httprequest.url,
+    #         'request_content_type': request.httprequest.content_type,
+    #         'request_mimetype': getattr(request, 'mimetype', None),
+    #         'request_remote_addr': request.httprequest.remote_addr,
+    #     }
+        
+    #     # Log detailed request info
+    #     for key, value in debug_info.items():
+    #         _logger.info("JSON Profile debug - %s: %s", key, value)
+        
     #     if request.httprequest.method == 'OPTIONS':
+    #         _logger.info("Handling OPTIONS request for JSON Profile endpoint")
     #         return self._handle_options_request()
         
     #     try:
+    #         # Log request headers (excluding sensitive data)
+    #         safe_headers = {k: v for k, v in request.httprequest.headers.items() 
+    #                       if k.lower() not in ['cookie', 'authorization'] or k.lower() == 'authorization' and v.startswith('Basic ')}
+    #         if 'authorization' in safe_headers:
+    #             safe_headers['authorization'] = 'Basic *****'
+    #         _logger.info("JSON Profile request headers: %s", safe_headers)
+            
     #         # First try to get user from session
     #         user = request.env.user
+    #         _logger.info("Initial user authentication: User ID=%s, Login=%s", user.id, user.login)
+            
     #         if user.id == request.env.ref('base.public_user').id:
+    #             _logger.info("User is public, attempting API key authentication")
+    #             # Log auth headers
+    #             auth_header = request.httprequest.headers.get('Authorization')
+    #             api_key = request.httprequest.headers.get('X-API-Key')
+                
+    #             _logger.info("Authentication headers - Authorization: %s, X-API-Key: %s", 
+    #                         "Present" if auth_header else "Not present",
+    #                         "Present" if api_key else "Not present")
+                
     #             # If public user, try to validate API key
-    #             try:
-    #                 is_valid, result = self._validate_api_key()
-    #                 if not is_valid:
-    #                     _logger.warning("API key validation failed: %s", result)
-    #                     return {
-    #                         'success': False,
-    #                         'error': "Authentication Error: Invalid or missing API key"
-    #                     }
-    #                 user = result  # Use the authenticated user
-    #             except Exception as auth_error:
-    #                 _logger.error("Authentication error: %s", str(auth_error))
-    #                 return {
+    #             is_valid, result = self._validate_api_key()
+    #             if not is_valid:
+    #                 _logger.warning("API key validation failed: %s", result)
+    #                 error_info = {
     #                     'success': False,
-    #                     'error': f"Authentication Error: {str(auth_error)}"
+    #                     'error': "Authentication Error: Invalid or missing API key",
+    #                     'debug': {
+    #                         'auth_error': result.get('error'),
+    #                         'auth_header_present': bool(auth_header),
+    #                         'api_key_present': bool(api_key)
+    #                     }
     #                 }
+    #                 _logger.error("Authentication failed with details: %s", error_info)
+    #                 return error_info
+    #             _logger.info("API key validation successful, authenticated as User ID=%s, Login=%s", 
+    #                          result.id, result.login)
+    #             user = result  # Use the authenticated user
             
     #         # Get employee based on user
+    #         _logger.info("Looking up employee record for user ID=%s", user.id)
     #         employee = request.env['hr.employee'].sudo().search([('user_id', '=', user.id)], limit=1)
     #         if not employee:
-    #             return {
+    #             _logger.warning("No employee record found for user ID=%s", user.id)
+    #             error_info = {
     #                 'success': False,
-    #                 'error': "Access Denied: User is not linked to an employee record"
+    #                 'error': "Access Denied: User is not linked to an employee record",
+    #                 'debug': {
+    #                     'user_id': user.id,
+    #                     'login': user.login,
+    #                     'search_criteria': {'user_id': user.id}
+    #                 }
     #             }
-                
+    #             _logger.error("Employee not found with details: %s", error_info)
+    #             return error_info
+            
+    #         _logger.info("Employee found: ID=%s, Name=%s", employee.id, employee.name)
+            
     #         # Format employee data - exclude binary fields for performance
-    #         return {
+    #         response_data = {
     #             'success': True,
     #             'data': {
     #                 "id": employee.id,
@@ -240,12 +362,25 @@ class EmployeeSelfServiceAPIController(HrRestApiController):
     #                 "has_photo": bool(employee.image_1920),
     #             }
     #         }
+            
+    #         _logger.info("JSON Profile endpoint completed successfully for employee ID=%s", employee.id)
+    #         return response_data
     #     except Exception as e:
     #         _logger.error("Error in get_employee_profile: %s", str(e), exc_info=True)
-    #         return {
+    #         error_info = {
     #             'success': False,
-    #             'error': f"Server Error: {str(e)}"
+    #             'error': f"Server Error: {str(e)}",
+    #             'debug': {
+    #                 'exception': str(e),
+    #                 'traceback': traceback.format_exc(),
+    #                 'request_url': request.httprequest.url,
+    #                 'request_method': request.httprequest.method,
+    #                 'user_id': getattr(request.env.user, 'id', None),
+    #                 'user_login': getattr(request.env.user, 'login', None)
+    #             } if request.env.user.has_group('base.group_system') else None
     #         }
+    #         _logger.error("JSON Profile error details: %s", error_info)
+    #         return error_info
         
     @http.route('/api/employee/profile/update', type='json', auth='user', methods=['POST', 'OPTIONS'])
     def update_employee_profile(self, **kw):
@@ -1140,10 +1275,34 @@ class EmployeeSelfServiceAPIController(HrRestApiController):
     @http.route('/api/auth/diagnostic', type='http', auth='public', methods=['GET', 'OPTIONS'], csrf=False)
     def auth_diagnostic(self, **kw):
         """Diagnostic endpoint to troubleshoot authentication issues"""
+        _logger.info("Auth diagnostic endpoint called with method: %s, params: %s", 
+                    request.httprequest.method, kw)
+        
         if request.httprequest.method == 'OPTIONS':
+            _logger.info("Handling OPTIONS request for Auth diagnostic endpoint")
             return self._handle_options_request()
 
         headers = [('Content-Type', 'application/json')]
+        
+        # Debug info to track the request context
+        debug_info = {
+            'request_method': request.httprequest.method,
+            'request_path': request.httprequest.path,
+            'request_query_string': request.httprequest.query_string.decode('utf-8') if request.httprequest.query_string else '',
+            'request_url': request.httprequest.url,
+            'request_headers': dict(request.httprequest.headers),
+            'request_remote_addr': request.httprequest.remote_addr,
+        }
+        
+        # Log detailed request info
+        for key, value in debug_info.items():
+            if key == 'request_headers':
+                # Clean sensitive headers
+                safe_headers = {k: (v if k.lower() not in ['cookie', 'authorization'] 
+                                  else f"{v[:10]}...") for k, v in value.items()}
+                _logger.info("Auth diagnostic debug - %s: %s", key, safe_headers)
+            else:
+                _logger.info("Auth diagnostic debug - %s: %s", key, value)
         
         try:
             # Get request headers (excluding sensitive ones)
@@ -1173,12 +1332,20 @@ class EmployeeSelfServiceAPIController(HrRestApiController):
                 'session': {
                     'authenticated': request.session.uid is not None,
                     'uid': request.session.uid,
+                    'session_id': request.session.sid,
+                    'context': request.session.get('context', {}),
                 },
                 'user': {
                     'id': request.env.user.id,
                     'login': request.env.user.login,
                     'is_public': request.env.user.id == request.env.ref('base.public_user').id,
                     'has_employee': bool(request.env['hr.employee'].sudo().search([('user_id', '=', request.env.user.id)], limit=1)),
+                    'groups': [g.name for g in request.env.user.groups_id] if request.env.user.id != request.env.ref('base.public_user').id else [],
+                },
+                'environment': {
+                    'odoo_version': getattr(odoo, 'release', {}).get('version', 'Unknown'),
+                    'database': request.env.cr.dbname,
+                    'lang': request.env.context.get('lang', 'en_US'),
                 }
             }
             
@@ -1200,10 +1367,21 @@ class EmployeeSelfServiceAPIController(HrRestApiController):
                     if employee:
                         auth_result['employee_id'] = employee.id
                         auth_result['employee_name'] = employee.name
+                        auth_result['employee_work_email'] = employee.work_email
+                        auth_result['employee_department'] = employee.department_id.name if employee.department_id else None
                 else:
                     auth_result['error'] = result.get('error')
+                    auth_result['error_details'] = result
             
             diagnostics['auth_test'] = auth_result
+            
+            # Check API key configuration
+            api_key_config = {
+                'api_key_field_exists': hasattr(request.env['res.users'], 'api_key'),
+                'apikeys_model_exists': bool(request.env['ir.model'].sudo().search([('model', '=', 'res.users.apikeys')], limit=1)),
+                'jwt_secret_configured': bool(request.env['ir.config_parameter'].sudo().get_param('jwt_secret')),
+            }
+            diagnostics['api_key_config'] = api_key_config
             
             # Suggest fix based on diagnostics
             suggestion = "Unknown issue. Please check all parameters."
@@ -1212,12 +1390,40 @@ class EmployeeSelfServiceAPIController(HrRestApiController):
                 suggestion = "No authentication credentials provided. Add an X-API-Key header or Basic Auth."
             elif not auth_result.get('valid', False):
                 suggestion = f"Authentication failed: {auth_result.get('error', 'Unknown reason')}"
+                
+                # Add more specific suggestions based on error
+                error = auth_result.get('error', '').lower()
+                if 'invalid api key' in error:
+                    suggestion += " - Make sure you're providing the correct API key value."
+                elif 'user not found' in error:
+                    suggestion += " - The user associated with this API key may not exist or is inactive."
+                elif 'missing' in error and 'header' in error:
+                    suggestion += " - You need to add the 'Authorization' header with Basic Auth or 'X-API-Key' header."
+                elif 'expired' in error:
+                    suggestion += " - Your JWT token has expired. Please request a new one."
+                elif 'format' in error:
+                    suggestion += " - The Basic Auth format should be 'login:password' encoded in Base64."
             elif not auth_result.get('has_employee', False):
                 suggestion = "Authentication successful, but user is not linked to an employee record."
+                
+                # Check if there are employees without users
+                employees_without_users = request.env['hr.employee'].sudo().search([('user_id', '=', False)], limit=5)
+                if employees_without_users:
+                    suggestion += f" There are {len(employees_without_users)} employees without user accounts."
             else:
                 suggestion = "Authentication successful! You should be able to access the API."
             
             diagnostics['suggestion'] = suggestion
+            
+            # Add request compatibility check
+            compatibility = {
+                'supports_json': request.httprequest.headers.get('Content-Type') == 'application/json' or 
+                                'application/json' in request.httprequest.headers.get('Accept', ''),
+                'accepts_json': 'application/json' in request.httprequest.headers.get('Accept', ''),
+                'is_cors': bool(request.httprequest.headers.get('Origin')),
+                'cors_headers_present': bool(request.httprequest.headers.get('Access-Control-Request-Headers')),
+            }
+            diagnostics['compatibility'] = compatibility
             
             # Return diagnostic information
             result = {
@@ -1225,6 +1431,7 @@ class EmployeeSelfServiceAPIController(HrRestApiController):
                 'diagnostics': diagnostics
             }
             
+            _logger.info("Auth diagnostic endpoint completed successfully: %s", suggestion)
             response = request.make_response(json.dumps(result), headers=headers)
             return self._add_cors_headers(response)
             
@@ -1233,7 +1440,16 @@ class EmployeeSelfServiceAPIController(HrRestApiController):
             result = {
                 'success': False,
                 'error': 'Server error occurred during diagnostic.',
-                'debug': str(e)
+                'debug': {
+                    'exception': str(e),
+                    'traceback': traceback.format_exc(),
+                    'request_info': {
+                        'url': request.httprequest.url,
+                        'method': request.httprequest.method,
+                        'headers': {k: v for k, v in request.httprequest.headers.items() 
+                                    if k.lower() not in ['cookie', 'authorization']}
+                    }
+                }
             }
             response = request.make_response(json.dumps(result), headers=headers, status=500)
             return self._add_cors_headers(response)
@@ -1254,9 +1470,12 @@ class EmployeeSelfServiceAPIController(HrRestApiController):
         - is_valid: boolean indicating if authentication is valid
         - result: the user object if valid, error dict with specific message if not
         """
+        _logger.info("Validating API key or Basic Auth credentials")
+        
         # Check for X-API-Key first
         api_key = request.httprequest.headers.get('X-API-Key')
         if api_key:
+            _logger.info("X-API-Key found in headers, attempting validation")
             try:
                 if not hasattr(request, 'env') or request.env is None or not isinstance(request.env, Environment):
                     _logger.error(f"Invalid request.env: type={type(request.env)}, value={request.env}")
@@ -1264,18 +1483,18 @@ class EmployeeSelfServiceAPIController(HrRestApiController):
 
                 api_key_record = request.env['res.users'].sudo().search([('api_key', '=', api_key)], limit=1)
                 if not api_key_record:
-                    _logger.warning("API key not found")
+                    _logger.warning("API key not found in database")
                     return False, {"error": "Authentication failed: Invalid API key"}
 
                 user = request.env['res.users'].sudo().browse(api_key_record.user_id.id)
                 if not user.exists() or not user.active:
-                    _logger.warning(f"User not found or inactive for API key")
+                    _logger.warning(f"User not found or inactive for API key: User ID={api_key_record.user_id.id}")
                     return False, {"error": "Authentication failed: User not found or inactive"}
 
-                _logger.info(f"API key authentication successful for user: {user.login}")
+                _logger.info(f"API key authentication successful for user: {user.login} (ID={user.id})")
                 return True, user
             except Exception as e:
-                _logger.error(f"API key auth error: {str(e)}")
+                _logger.error(f"API key auth error: {str(e)}", exc_info=True)
                 return False, {"error": f"Authentication error: {str(e)}"}
 
         # Get authentication from Basic Auth or JWT
@@ -1283,6 +1502,7 @@ class EmployeeSelfServiceAPIController(HrRestApiController):
         
         # 1. Handle JWT Authentication
         if auth_header and auth_header.startswith('Bearer '):
+            _logger.info("Bearer token found in Authorization header, attempting JWT validation")
             try:
                 secret_key = request.env['ir.config_parameter'].sudo().get_param('jwt_secret')
                 if not secret_key:
@@ -1290,47 +1510,40 @@ class EmployeeSelfServiceAPIController(HrRestApiController):
                     return False, {"error": "Server configuration error: JWT secret key not set"}
 
                 token = auth_header[7:]
+                _logger.debug("Decoding JWT token")
                 payload = jwt.decode(token, secret_key, algorithms=['HS256'])
                 user_id = payload.get('user_id')
-                employee_id = payload.get('employee_id')
-                if not user_id or not employee_id:
-                    _logger.warning("JWT validation failed: Missing user_id or employee_id in payload")
-                    return False, {"error": "Authentication failed: Invalid JWT payload"}
+                _logger.info(f"JWT token decoded successfully. User ID in payload: {user_id}")
                 
                 user = request.env['res.users'].sudo().browse(user_id)
                 if not user.exists():
-                    _logger.warning("JWT validation failed: User ID %s not found", user_id)
+                    _logger.warning(f"JWT validation failed: User ID {user_id} not found")
                     return False, {"error": "Authentication failed: User not found"}
                 
-                employee = request.env['hr.employee'].sudo().search([('user_id', '=', user.id), ('id', '=', employee_id)], limit=1)
-                if not employee:
-                    _logger.warning("JWT validation failed: Employee ID %s not found or not linked to user", employee_id)
-                    return False, {"error": "Authentication failed: Invalid employee ID"}
-                
-                _logger.info("JWT authentication successful for user: %s, employee: %s", user.login, employee_id)
+                _logger.info(f"JWT authentication successful for user: {user.login} (ID={user.id})")
                 return True, user
             except jwt.ExpiredSignatureError:
                 _logger.warning("JWT validation failed: Token expired")
                 return False, {"error": "Authentication failed: Token expired"}
             except jwt.InvalidTokenError as e:
-                _logger.warning("JWT validation failed: %s", str(e))
+                _logger.warning(f"JWT validation failed: {str(e)}")
                 return False, {"error": "Authentication failed: Invalid token"}
             except Exception as e:
-                _logger.error("JWT authentication error: %s", str(e))
+                _logger.error(f"JWT authentication error: {str(e)}", exc_info=True)
                 return False, {"error": f"Authentication error: {str(e)}"}
 
         # 2. Handle Basic Authentication
         if auth_header and auth_header.startswith('Basic '):
+            _logger.info("Basic Auth credentials found in Authorization header")
             try:
                 if not hasattr(request, 'env') or request.env is None or not isinstance(request.env, Environment):
                     _logger.error(f"Invalid request.env: type={type(request.env)}, value={request.env}")
                     return False, {"error": "Internal error: Invalid environment configuration"}
 
-                _logger.debug(f"Raw auth_header: {auth_header}")
+                _logger.debug(f"Decoding Basic Auth header")
                 auth_decoded = base64.b64decode(auth_header[6:].strip()).decode('utf-8')
                 login, password = auth_decoded.split(':', 1)
-                _logger.debug(f"Basic Auth attempt with login: {login}")
-                _logger.debug(f"Password length: {len(password)}")
+                _logger.info(f"Basic Auth attempt with login: {login}, password length: {len(password)}")
                 
                 try:
                     user = request.env['res.users'].sudo().search([('login', '=', login)], limit=1)
@@ -1342,10 +1555,11 @@ class EmployeeSelfServiceAPIController(HrRestApiController):
                         _logger.warning(f"Basic Auth failed: User {login} is not active")
                         return False, {"error": "Authentication failed: User account is inactive"}
                     
-                    _logger.debug(f"User ID: {user.id}, Has API access: {user.has_group('base.group_user')}")
+                    _logger.debug(f"User found: ID={user.id}, Has API access: {user.has_group('base.group_user')}")
                     
                     # Method 1: Try _check_credentials
                     try:
+                        _logger.debug("Trying authentication with _check_credentials method")
                         user.sudo()._check_credentials(password)
                         _logger.info(f"Basic Auth successful for user: {user.login} (using _check_credentials)")
                         return True, user
@@ -1354,6 +1568,7 @@ class EmployeeSelfServiceAPIController(HrRestApiController):
                     
                     # Method 2: Try direct authenticate method
                     try:
+                        _logger.debug("Trying authentication with authenticate method")
                         db_name = request.env.cr.dbname
                         uid = request.env['res.users'].authenticate(db_name, login, password)
                         if uid:
@@ -1367,6 +1582,7 @@ class EmployeeSelfServiceAPIController(HrRestApiController):
                     
                     # Method 3: Check if it's an API key instead of password
                     try:
+                        _logger.debug("Checking if password might be an API key")
                         api_keys = request.env['res.users.apikeys'].sudo().search([('user_id', '=', user.id)])
                         if api_keys:
                             _logger.debug(f"User has {len(api_keys)} API keys")
@@ -1383,14 +1599,14 @@ class EmployeeSelfServiceAPIController(HrRestApiController):
                     return False, {"error": "Authentication failed: Invalid login or password"}
                         
                 except Exception as auth_error:
-                    _logger.error(f"Basic Auth authentication error for user {login}: {str(auth_error)}")
+                    _logger.error(f"Basic Auth authentication error for user {login}: {str(auth_error)}", exc_info=True)
                     return False, {"error": "Authentication failed: Invalid login or password"}
-                        
+                    
             except ValueError as ve:
                 _logger.warning(f"Basic Auth failed: Invalid format - {str(ve)}")
                 return False, {"error": "Authentication failed: Invalid Basic Auth format (should be 'login:password')"}
             except Exception as e:
-                _logger.error(f"Basic Auth decoding error: {str(e)}")
+                _logger.error(f"Basic Auth decoding error: {str(e)}", exc_info=True)
                 return False, {"error": f"Authentication error: {str(e)}"}
         
         _logger.warning("Authentication failed: No valid authentication method provided")
