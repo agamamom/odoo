@@ -137,35 +137,35 @@ class HrEmployeeController(HrRestApiController):
     
     # ===== PROJECT SUMMARY ENDPOINTS =====
     
-    @http.route('/api/employee/project-summary', type='http', auth='public', methods=['GET'], csrf=False)
+    @http.route('/api/employee/project-summary', type='json', auth='public', methods=['POST'], csrf=False)
     def get_project_summary(self, **kw):
         """Get employee project assignment summary"""
         try:
+            # Get the authenticated employee or error response
             employee, error_response = self._get_employee_from_user()
             if error_response:
                 return error_response
-            
+
+            # Fetch project performance summary
             project_summary = employee.get_project_performance_summary()
-            
-            result = {
-                "success": True,
-                "data": project_summary
+
+            # Return JSON response with success and data
+            return {
+                'success': True,
+                'data': project_summary
             }
-            
-            return self._prepare_response(result)
-            
+
         except Exception as e:
             _logger.error("Error in get_project_summary: %s", str(e), exc_info=True)
-            result = {
+            return {
                 'success': False,
                 'error': 'Server error occurred while processing your request.',
                 'status_code': 500
             }
-            return self._prepare_response(result, 500)
     
     # ===== SKILL SUMMARY ENDPOINTS =====
     
-    @http.route('/api/employee/skill-summary', type='http', auth='public', methods=['GET'], csrf=False)
+    @http.route('/api/employee/skill-summary', type='json', auth='public', methods=['POST'], csrf=False)
     def get_skill_summary(self, **kw):
         """Get employee skill summary"""
         try:
@@ -173,23 +173,20 @@ class HrEmployeeController(HrRestApiController):
             if error_response:
                 return error_response
             
-            skill_summary = employee.get_skill_summary()
+            skill_summary = employee.get_skill_performance_summary()
             
-            result = {
+            return {
                 "success": True,
                 "data": skill_summary
             }
             
-            return self._prepare_response(result)
-            
         except Exception as e:
             _logger.error("Error in get_skill_summary: %s", str(e), exc_info=True)
-            result = {
+            return {
                 'success': False,
                 'error': 'Server error occurred while processing your request.',
                 'status_code': 500
             }
-            return self._prepare_response(result, 500)
     
     @http.route('/api/employee/skill/check', type='json', auth='public', methods=['POST'], csrf=False)
     def check_skill_for_task(self, **kw):

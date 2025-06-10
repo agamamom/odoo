@@ -826,16 +826,19 @@ class HrEmployeePrivate(models.Model):
             })
         return summary
 
-    def get_skill_summary(self):
+    def get_skill_performance_summary(self):
         self.ensure_one()
-        return [{
-            'skill_name': skill.skill_name,
-            'skill_level': skill.skill_level,
-            'certificate': skill.certificate,
-            'certificate_issue_date': skill.certificate_issue_date,
-            'certificate_expiry_date': skill.certificate_expiry_date,
-            'note': skill.note,
-        } for skill in self.skill_employee_ids]
+        summary = []
+        for skill in self.skill_employee_ids:
+            summary.append({
+                'skill_name': skill.skill_name,
+                'skill_level': skill.skill_level,
+                'certificate': skill.certificate,
+                'certificate_issue_date': skill.certificate_issue_date,
+                'certificate_expiry_date': skill.certificate_expiry_date,
+                'note': skill.note,
+            })
+        return summary
 
     def has_skill_for_task(self, required_skills):
         """

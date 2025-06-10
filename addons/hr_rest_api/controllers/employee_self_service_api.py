@@ -17,6 +17,7 @@ import jwt
 from odoo.exceptions import AccessDenied
 from odoo.api import Environment
 import traceback
+from odoo.tools import date_utils
 
 
 _logger = logging.getLogger(__name__)
@@ -764,62 +765,95 @@ class EmployeeSelfServiceAPIController(HrRestApiController):
     
     # ===== CONTRACT ENDPOINTS =====
     
-    @http.route('/api/employee/contracts', type='http', auth='user', methods=['GET', 'OPTIONS'], csrf=False)
+    @http.route('/api/employee/contracts', type='json', auth='user', methods=['GET', 'OPTIONS'], csrf=False)
     def get_employee_contracts(self, **kw):
-        """Get employee's contracts"""
+        """Get employee's contracts with pagination and filtering"""
         if request.httprequest.method == 'OPTIONS':
-            return self._handle_options_request()
-            
-        headers = [('Content-Type', 'application/json')]
-        
+            response = request.make_response('', headers=[
+                ('Access-Control-Allow-Origin', '*'),
+                ('Access-Control-Allow-Methods', 'GET, OPTIONS'),
+                ('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+            ])
+            return response
+
         try:
+            # Parse query parameters
+            offset = int(kw.get('offset', 0))
+            limit = int(kw.get('limit', 10))
+            state_filter = kw.get('state', None)
+
+            if limit > 100:
+                limit = 100
+            if offset < 0:
+                offset = 0
+
             # Get the authenticated employee
             employee = request.env['hr.employee'].sudo().search([('user_id', '=', request.env.user.id)], limit=1)
             if not employee:
-                result = {
+                _logger.warning("Access Denied: User %s is not linked to an employee record", request.env.user.name)
+                return {
                     'success': False,
-                    'error': "Access Denied: User is not linked to an employee record"
+                    'error': "Access Denied: User is not linked to an employee record",
+                    'status_code': 403
                 }
-                response = request.make_response(json.dumps(result), headers=headers)
-                return self._add_cors_headers(response)
-            
-            contracts = request.env['hr.contract'].sudo().search([
-                ('employee_id', '=', employee.id)
-            ])
-            
+
+            # Build domain for contract search with optional state filter
+            domain = [('employee_id', '=', employee.id)]
+            if state_filter:
+                domain.append(('state', '=', state_filter))
+
+            # Fetch contracts with pagination
+            contracts = request.env['hr.contract'].sudo().search(domain, offset=offset, limit=limit)
+
             result_data = []
             for contract in contracts:
                 result_data.append({
                     'id': contract.id,
-                    'name': contract.name,
+                    'name': contract.name or '',
                     'state': contract.state,
-                    'date_start': fields.Date.to_string(contract.date_start),
-                    'date_end': fields.Date.to_string(contract.date_end) if contract.date_end else False,
-                    'wage': contract.wage,
-                    'department_id': contract.department_id.id if contract.department_id else False,
-                    'department_name': contract.department_id.name if contract.department_id else "",
-                    'job_id': contract.job_id.id if contract.job_id else False,
-                    'job_title': contract.job_id.name if contract.job_id else "",
-                    'resource_calendar_id': contract.resource_calendar_id.id if contract.resource_calendar_id else False,
-                    'work_schedule': contract.resource_calendar_id.name if contract.resource_calendar_id else "",
-                    'trial_date_end': fields.Date.to_string(contract.trial_date_end) if contract.trial_date_end else False,
+                    'date_start': date_utils.to_string(contract.date_start) if isinstance(contract.date_start, date) else False,
+                    'date_end': date_utils.to_string(contract.date_end) if contract.date_end and isinstance(contract.date_end, date) else False,
+                    'wage': contract.wage or 0.0,
+                    'department_id': contract.department_id.id if contract.department_id and hasattr(contract.department_id, 'id') else False,
+                    'department_name': contract.department_id.name if contract.department_id and hasattr(contract.department_id, 'name') else "",
+                    'job_id': contract.job_id.id if contract.job_id and hasattr(contract.job_id, 'id') else False,
+                    'job_title': contract.job_id.name if contract.job_id and hasattr(contract.job_id, 'name') else "",
+                    'resource_calendar_id': contract.resource_calendar_id.id if contract.resource_calendar_id and hasattr(contract.resource_calendar_id, 'id') else False,
+                    'work_schedule': contract.resource_calendar_id.name if contract.resource_calendar_id and hasattr(contract.resource_calendar_id, 'name') else "",
+                    'trial_date_end': date_utils.to_string(contract.trial_date_end) if contract.trial_date_end and isinstance(contract.trial_date_end, date) else False,
                 })
-            
-            result = {
+
+            _logger.info("Successfully fetched %d contracts for employee %s", len(result_data), employee.name)
+            response_data = {
                 'success': True,
-                'data': result_data
+                'data': result_data,
+                'total_count': len(request.env['hr.contract'].sudo().search(domain)),
+                'offset': offset,
+                'limit': limit
             }
-            
-            response = request.make_response(json.dumps(result), headers=headers)
-            return self._add_cors_headers(response)
-        except Exception as e:
-            _logger.error("Error in get_employee_contracts: %s", str(e), exc_info=True)
-            result = {
+            return request.make_json_response(response_data)
+
+        except ValueError as e:
+            _logger.error("Invalid query parameter in get_employee_contracts: %s", str(e), exc_info=True)
+            return request.make_json_response({
                 'success': False,
-                'error': f"Server Error: {str(e)}"
-            }
-            response = request.make_response(json.dumps(result), headers=headers, status=500)
-            return self._add_cors_headers(response)
+                'error': "Invalid query parameter: offset and limit must be integers",
+                'status_code': 400
+            })
+        except AccessDenied as e:
+            _logger.error("Access Denied in get_employee_contracts: %s", str(e), exc_info=True)
+            return request.make_json_response({
+                'success': False,
+                'error': "Access Denied: Insufficient permissions",
+                'status_code': 403
+            })
+        except Exception as e:
+            _logger.error("Unexpected error in get_employee_contracts: %s", str(e), exc_info=True)
+            return request.make_json_response({
+                'success': False,
+                'error': f"Server Error: {str(e)}",
+                'status_code': 500
+            })
     
     # ===== FAMILY INFORMATION ENDPOINTS =====
     
