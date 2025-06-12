@@ -1497,154 +1497,154 @@ class EmployeeSelfServiceAPIController(HrRestApiController):
         # Redirect to the new diagnostic endpoint
         return self.auth_diagnostic(**kw)
 
-    def _validate_api_key(self):
-        """
-        Simplified API key validation method that uses HTTP Basic Auth or API key.
-        Returns a tuple (is_valid, result) where:
-        - is_valid: boolean indicating if authentication is valid
-        - result: the user object if valid, error dict with specific message if not
-        """
-        _logger.info("Validating API key or Basic Auth credentials")
+    # def _validate_api_key(self):
+    #     """
+    #     Simplified API key validation method that uses HTTP Basic Auth or API key.
+    #     Returns a tuple (is_valid, result) where:
+    #     - is_valid: boolean indicating if authentication is valid
+    #     - result: the user object if valid, error dict with specific message if not
+    #     """
+    #     _logger.info("Validating API key or Basic Auth credentials")
         
-        # Check for X-API-Key first
-        api_key = request.httprequest.headers.get('X-API-Key')
-        if api_key:
-            _logger.info("X-API-Key found in headers, attempting validation")
-            try:
-                if not hasattr(request, 'env') or request.env is None or not isinstance(request.env, Environment):
-                    _logger.error(f"Invalid request.env: type={type(request.env)}, value={request.env}")
-                    return False, {"error": "Internal error: Invalid environment configuration"}
+    #     # Check for X-API-Key first
+    #     api_key = request.httprequest.headers.get('X-API-Key')
+    #     if api_key:
+    #         _logger.info("X-API-Key found in headers, attempting validation")
+    #         try:
+    #             if not hasattr(request, 'env') or request.env is None or not isinstance(request.env, Environment):
+    #                 _logger.error(f"Invalid request.env: type={type(request.env)}, value={request.env}")
+    #                 return False, {"error": "Internal error: Invalid environment configuration"}
 
-                api_key_record = request.env['res.users'].sudo().search([('api_key', '=', api_key)], limit=1)
-                if not api_key_record:
-                    _logger.warning("API key not found in database")
-                    return False, {"error": "Authentication failed: Invalid API key"}
+    #             api_key_record = request.env['res.users'].sudo().search([('api_key', '=', api_key)], limit=1)
+    #             if not api_key_record:
+    #                 _logger.warning("API key not found in database")
+    #                 return False, {"error": "Authentication failed: Invalid API key"}
 
-                user = request.env['res.users'].sudo().browse(api_key_record.user_id.id)
-                if not user.exists() or not user.active:
-                    _logger.warning(f"User not found or inactive for API key: User ID={api_key_record.user_id.id}")
-                    return False, {"error": "Authentication failed: User not found or inactive"}
+    #             user = request.env['res.users'].sudo().browse(api_key_record.user_id.id)
+    #             if not user.exists() or not user.active:
+    #                 _logger.warning(f"User not found or inactive for API key: User ID={api_key_record.user_id.id}")
+    #                 return False, {"error": "Authentication failed: User not found or inactive"}
 
-                _logger.info(f"API key authentication successful for user: {user.login} (ID={user.id})")
-                return True, user
-            except Exception as e:
-                _logger.error(f"API key auth error: {str(e)}", exc_info=True)
-                return False, {"error": f"Authentication error: {str(e)}"}
+    #             _logger.info(f"API key authentication successful for user: {user.login} (ID={user.id})")
+    #             return True, user
+    #         except Exception as e:
+    #             _logger.error(f"API key auth error: {str(e)}", exc_info=True)
+    #             return False, {"error": f"Authentication error: {str(e)}"}
 
-        # Get authentication from Basic Auth or JWT
-        auth_header = request.httprequest.headers.get('Authorization')
+    #     # Get authentication from Basic Auth or JWT
+    #     auth_header = request.httprequest.headers.get('Authorization')
         
-        # 1. Handle JWT Authentication
-        if auth_header and auth_header.startswith('Bearer '):
-            _logger.info("Bearer token found in Authorization header, attempting JWT validation")
-            try:
-                secret_key = request.env['ir.config_parameter'].sudo().get_param('jwt_secret')
-                if not secret_key:
-                    _logger.error("JWT secret key not configured in ir.config_parameter")
-                    return False, {"error": "Server configuration error: JWT secret key not set"}
+    #     # 1. Handle JWT Authentication
+    #     if auth_header and auth_header.startswith('Bearer '):
+    #         _logger.info("Bearer token found in Authorization header, attempting JWT validation")
+    #         try:
+    #             secret_key = request.env['ir.config_parameter'].sudo().get_param('jwt_secret')
+    #             if not secret_key:
+    #                 _logger.error("JWT secret key not configured in ir.config_parameter")
+    #                 return False, {"error": "Server configuration error: JWT secret key not set"}
 
-                token = auth_header[7:]
-                _logger.debug("Decoding JWT token")
-                payload = jwt.decode(token, secret_key, algorithms=['HS256'])
-                user_id = payload.get('user_id')
-                _logger.info(f"JWT token decoded successfully. User ID in payload: {user_id}")
+    #             token = auth_header[7:]
+    #             _logger.debug("Decoding JWT token")
+    #             payload = jwt.decode(token, secret_key, algorithms=['HS256'])
+    #             user_id = payload.get('user_id')
+    #             _logger.info(f"JWT token decoded successfully. User ID in payload: {user_id}")
                 
-                user = request.env['res.users'].sudo().browse(user_id)
-                if not user.exists():
-                    _logger.warning(f"JWT validation failed: User ID {user_id} not found")
-                    return False, {"error": "Authentication failed: User not found"}
+    #             user = request.env['res.users'].sudo().browse(user_id)
+    #             if not user.exists():
+    #                 _logger.warning(f"JWT validation failed: User ID {user_id} not found")
+    #                 return False, {"error": "Authentication failed: User not found"}
                 
-                _logger.info(f"JWT authentication successful for user: {user.login} (ID={user.id})")
-                return True, user
-            except jwt.ExpiredSignatureError:
-                _logger.warning("JWT validation failed: Token expired")
-                return False, {"error": "Authentication failed: Token expired"}
-            except jwt.InvalidTokenError as e:
-                _logger.warning(f"JWT validation failed: {str(e)}")
-                return False, {"error": "Authentication failed: Invalid token"}
-            except Exception as e:
-                _logger.error(f"JWT authentication error: {str(e)}", exc_info=True)
-                return False, {"error": f"Authentication error: {str(e)}"}
+    #             _logger.info(f"JWT authentication successful for user: {user.login} (ID={user.id})")
+    #             return True, user
+    #         except jwt.ExpiredSignatureError:
+    #             _logger.warning("JWT validation failed: Token expired")
+    #             return False, {"error": "Authentication failed: Token expired"}
+    #         except jwt.InvalidTokenError as e:
+    #             _logger.warning(f"JWT validation failed: {str(e)}")
+    #             return False, {"error": "Authentication failed: Invalid token"}
+    #         except Exception as e:
+    #             _logger.error(f"JWT authentication error: {str(e)}", exc_info=True)
+    #             return False, {"error": f"Authentication error: {str(e)}"}
 
-        # 2. Handle Basic Authentication
-        if auth_header and auth_header.startswith('Basic '):
-            _logger.info("Basic Auth credentials found in Authorization header")
-            try:
-                if not hasattr(request, 'env') or request.env is None or not isinstance(request.env, Environment):
-                    _logger.error(f"Invalid request.env: type={type(request.env)}, value={request.env}")
-                    return False, {"error": "Internal error: Invalid environment configuration"}
+    #     # 2. Handle Basic Authentication
+    #     if auth_header and auth_header.startswith('Basic '):
+    #         _logger.info("Basic Auth credentials found in Authorization header")
+    #         try:
+    #             if not hasattr(request, 'env') or request.env is None or not isinstance(request.env, Environment):
+    #                 _logger.error(f"Invalid request.env: type={type(request.env)}, value={request.env}")
+    #                 return False, {"error": "Internal error: Invalid environment configuration"}
 
-                _logger.debug(f"Decoding Basic Auth header")
-                auth_decoded = base64.b64decode(auth_header[6:].strip()).decode('utf-8')
-                login, password = auth_decoded.split(':', 1)
-                _logger.info(f"Basic Auth attempt with login: {login}, password length: {len(password)}")
+    #             _logger.debug(f"Decoding Basic Auth header")
+    #             auth_decoded = base64.b64decode(auth_header[6:].strip()).decode('utf-8')
+    #             login, password = auth_decoded.split(':', 1)
+    #             _logger.info(f"Basic Auth attempt with login: {login}, password length: {len(password)}")
                 
-                try:
-                    user = request.env['res.users'].sudo().search([('login', '=', login)], limit=1)
-                    if not user:
-                        _logger.warning(f"Basic Auth failed: User not found with login {login}")
-                        return False, {"error": "Authentication failed: Invalid login or password"}
+    #             try:
+    #                 user = request.env['res.users'].sudo().search([('login', '=', login)], limit=1)
+    #                 if not user:
+    #                     _logger.warning(f"Basic Auth failed: User not found with login {login}")
+    #                     return False, {"error": "Authentication failed: Invalid login or password"}
                     
-                    if not user.active:
-                        _logger.warning(f"Basic Auth failed: User {login} is not active")
-                        return False, {"error": "Authentication failed: User account is inactive"}
+    #                 if not user.active:
+    #                     _logger.warning(f"Basic Auth failed: User {login} is not active")
+    #                     return False, {"error": "Authentication failed: User account is inactive"}
                     
-                    _logger.debug(f"User found: ID={user.id}, Has API access: {user.has_group('base.group_user')}")
+    #                 _logger.debug(f"User found: ID={user.id}, Has API access: {user.has_group('base.group_user')}")
                     
-                    # Method 1: Try _check_credentials
-                    try:
-                        _logger.debug("Trying authentication with _check_credentials method")
-                        user.sudo()._check_credentials(password)
-                        _logger.info(f"Basic Auth successful for user: {user.login} (using _check_credentials)")
-                        return True, user
-                    except Exception as cred_error:
-                        _logger.debug(f"_check_credentials failed: {str(cred_error)}")
+    #                 # Method 1: Try _check_credentials
+    #                 try:
+    #                     _logger.debug("Trying authentication with _check_credentials method")
+    #                     user.sudo()._check_credentials(password)
+    #                     _logger.info(f"Basic Auth successful for user: {user.login} (using _check_credentials)")
+    #                     return True, user
+    #                 except Exception as cred_error:
+    #                     _logger.debug(f"_check_credentials failed: {str(cred_error)}")
                     
-                    # Method 2: Try direct authenticate method
-                    try:
-                        _logger.debug("Trying authentication with authenticate method")
-                        db_name = request.env.cr.dbname
-                        uid = request.env['res.users'].authenticate(db_name, login, password)
-                        if uid:
-                            authenticated_user = request.env['res.users'].sudo().browse(uid)
-                            _logger.info(f"Basic Auth successful for user: {authenticated_user.login} (using authenticate)")
-                            return True, authenticated_user
-                        else:
-                            _logger.debug(f"authenticate method returned: {uid}")
-                    except Exception as auth_error:
-                        _logger.debug(f"authenticate method failed: {str(auth_error)}")
+    #                 # Method 2: Try direct authenticate method
+    #                 try:
+    #                     _logger.debug("Trying authentication with authenticate method")
+    #                     db_name = request.env.cr.dbname
+    #                     uid = request.env['res.users'].authenticate(db_name, login, password)
+    #                     if uid:
+    #                         authenticated_user = request.env['res.users'].sudo().browse(uid)
+    #                         _logger.info(f"Basic Auth successful for user: {authenticated_user.login} (using authenticate)")
+    #                         return True, authenticated_user
+    #                     else:
+    #                         _logger.debug(f"authenticate method returned: {uid}")
+    #                 except Exception as auth_error:
+    #                     _logger.debug(f"authenticate method failed: {str(auth_error)}")
                     
-                    # Method 3: Check if it's an API key instead of password
-                    try:
-                        _logger.debug("Checking if password might be an API key")
-                        api_keys = request.env['res.users.apikeys'].sudo().search([('user_id', '=', user.id)])
-                        if api_keys:
-                            _logger.debug(f"User has {len(api_keys)} API keys")
-                            for api_key in api_keys:
-                                if api_key.key and api_key.key == password:
-                                    _logger.info(f"Basic Auth successful for user: {user.login} (using API key)")
-                                    return True, user
-                        else:
-                            _logger.debug("User has no API keys")
-                    except Exception as api_error:
-                        _logger.debug(f"API key check failed: {str(api_error)}")
+    #                 # Method 3: Check if it's an API key instead of password
+    #                 try:
+    #                     _logger.debug("Checking if password might be an API key")
+    #                     api_keys = request.env['res.users.apikeys'].sudo().search([('user_id', '=', user.id)])
+    #                     if api_keys:
+    #                         _logger.debug(f"User has {len(api_keys)} API keys")
+    #                         for api_key in api_keys:
+    #                             if api_key.key and api_key.key == password:
+    #                                 _logger.info(f"Basic Auth successful for user: {user.login} (using API key)")
+    #                                 return True, user
+    #                     else:
+    #                         _logger.debug("User has no API keys")
+    #                 except Exception as api_error:
+    #                     _logger.debug(f"API key check failed: {str(api_error)}")
                     
-                    _logger.warning(f"Basic Auth failed: All authentication methods failed for user {login}")
-                    return False, {"error": "Authentication failed: Invalid login or password"}
+    #                 _logger.warning(f"Basic Auth failed: All authentication methods failed for user {login}")
+    #                 return False, {"error": "Authentication failed: Invalid login or password"}
                         
-                except Exception as auth_error:
-                    _logger.error(f"Basic Auth authentication error for user {login}: {str(auth_error)}", exc_info=True)
-                    return False, {"error": "Authentication failed: Invalid login or password"}
+    #             except Exception as auth_error:
+    #                 _logger.error(f"Basic Auth authentication error for user {login}: {str(auth_error)}", exc_info=True)
+    #                 return False, {"error": "Authentication failed: Invalid login or password"}
                     
-            except ValueError as ve:
-                _logger.warning(f"Basic Auth failed: Invalid format - {str(ve)}")
-                return False, {"error": "Authentication failed: Invalid Basic Auth format (should be 'login:password')"}
-            except Exception as e:
-                _logger.error(f"Basic Auth decoding error: {str(e)}", exc_info=True)
-                return False, {"error": f"Authentication error: {str(e)}"}
+    #         except ValueError as ve:
+    #             _logger.warning(f"Basic Auth failed: Invalid format - {str(ve)}")
+    #             return False, {"error": "Authentication failed: Invalid Basic Auth format (should be 'login:password')"}
+    #         except Exception as e:
+    #             _logger.error(f"Basic Auth decoding error: {str(e)}", exc_info=True)
+    #             return False, {"error": f"Authentication error: {str(e)}"}
         
-        _logger.warning("Authentication failed: No valid authentication method provided")
-        return False, {"error": "Authentication required: missing Authorization header"}
+    #     _logger.warning("Authentication failed: No valid authentication method provided")
+    #     return False, {"error": "Authentication required: missing Authorization header"}
 
     @http.route('/api/auth/get_api_key', type='http', auth='user', methods=['GET'], csrf=False)
     def get_api_key(self, **kw):
