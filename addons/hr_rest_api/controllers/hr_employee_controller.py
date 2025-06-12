@@ -60,7 +60,7 @@ class HrEmployeeController(HrRestApiController):
             return None, self._prepare_response(result, 401)
         
         user = result
-        
+        _logger.info("user= %s", user.id)
         # If include_current_user is True, return the user even if not an employee
         if include_current_user:
             return user, None
@@ -81,13 +81,20 @@ class HrEmployeeController(HrRestApiController):
     
     @http.route('/api/employee/profile', type='http', auth='public', methods=['GET'], csrf=False)
     def get_employee_profile(self, **kw):
-        """Get employee profile data"""
+        _logger.info("GET /api/employee/profile called with params: %s", kw)
         try:
             employee, error_response = self._get_employee_from_user()
             if error_response:
+                _logger.warning("Access denied or invalid user: %s", error_response)
                 return error_response
+
+            # Log chi tiết employee
+            _logger.debug(
+                "Fetched employee id=%s name=%s company=%s",
+                employee.id, employee.name, employee.company_id.name if employee.company_id else None
+            )
             
-            # Return employee profile data
+
             result = {
                 "success": True,
                 "data": {
@@ -119,11 +126,14 @@ class HrEmployeeController(HrRestApiController):
                     "personal_tax_code": employee.personal_tax_code or "",
                 }
             }
-            
+
+            _logger.info("Successfully prepared profile for employee id=%s", employee.id)
+            _logger.info("name= %s", employee.name)
             return self._prepare_response(result)
-            
+
         except Exception as e:
-            _logger.error("Error in get_employee_profile: %s", str(e), exc_info=True)
+            # Ghi log lỗi chi tiết bao gồm traceback
+            _logger.exception("Error in get_employee_profile")
             result = {
                 'success': False,
                 'error': 'Server error occurred while processing your request.',
