@@ -1448,6 +1448,7 @@ class HrRestApiController(http.Controller):
 
     @http.route('/api/hr/attendances/confirm', type='json', auth='public', methods=['POST'], csrf=False)
     def confirm_attendance(self, **kw):
+        # For type='json' routes, kw already contains the parsed JSON data
         _logger.info("Raw request body: %s", request.httprequest.data)
         _logger.info("Request headers: %s", dict(request.httprequest.headers))
         try:
@@ -1459,11 +1460,12 @@ class HrRestApiController(http.Controller):
                 json.dumps({'success': False, 'error': 'Invalid JSON data'}),
                 headers={'Content-Type': 'application/json'}
             )
+
+        
         # Validate API key
         is_valid, user = self._validate_api_key()
         if not is_valid:
             return {'success': False, 'error': user.get('error', 'Authentication failed')}
-
        
         if not data:
             return {'success': False, 'error': 'No data provided in request body'}
@@ -1473,7 +1475,7 @@ class HrRestApiController(http.Controller):
         if not employee_id:
             return {'success': False, 'error': 'Missing employee_id'}
 
-        # Lấy thông tin bổ sung từ request hoặc client gửi lên
+        # Get additional information from request or client
         ip_address = data.get('in_ip_address') or request.httprequest.remote_addr
         browser = data.get('in_browser') or request.httprequest.user_agent.string if hasattr(request.httprequest, 'user_agent') else None
         latitude = data.get('in_latitude')
@@ -1484,39 +1486,143 @@ class HrRestApiController(http.Controller):
         is_within_geofence = data.get('is_within_geofence')
         is_offline = data.get('is_offline')
         company_id = data.get('company_id')
-        face_id_timestamp = fields.Datetime.now()
-
-        vals = {
-            'employee_id': employee_id,
-            'face_id_result': face_id_result,
-            'face_id_timestamp': face_id_timestamp,
-            'in_ip_address': ip_address,
-            'in_browser': browser,
-            'in_latitude': latitude,
-            'in_longitude': longitude,
-            'in_country_name': country_name,
-            'in_city': city,
-            'is_within_geofence': is_within_geofence,
-            'is_offline': is_offline,
-            'company_id': company_id,
-        }
-        if action == 'check_in':
-            vals['check_in'] = fields.Datetime.now()
-            # Nếu có thông tin out_* thì cũng lưu
-            for k in ['out_latitude', 'out_longitude', 'out_country_name', 'out_city', 'out_ip_address', 'out_browser', 'out_mode']:
-                if data.get(k):
-                    vals[k] = data.get(k)
-        elif action == 'check_out':
-            vals['check_out'] = fields.Datetime.now()
-            # Nếu có thông tin out_* thì cũng lưu
-            for k in ['out_latitude', 'out_longitude', 'out_country_name', 'out_city', 'out_ip_address', 'out_browser', 'out_mode']:
-                if data.get(k):
-                    vals[k] = data.get(k)
+        
+        # Get local time from client if provided, otherwise use server time
+        local_time_str = data.get('local_time')
+        if local_time_str:
+            try:
+                # Parse the local time string (expected format: "YYYY-MM-DD HH:MM:SS")
+                local_time = datetime.strptime(local_time_str, "%Y-%m-%d %H:%M:%S")
+                current_time = fields.Datetime.to_datetime(local_time)
+                _logger.info(f"Using client-provided local time: {local_time_str}")
+            except (ValueError, TypeError) as e:
+                _logger.warning(f"Invalid local_time format: {local_time_str}, using server time instead. Error: {str(e)}")
+                current_time = fields.Datetime.now()
         else:
-            return {'success': False, 'error': 'Invalid action'}
+            current_time = fields.Datetime.now()
+            
+        face_id_timestamp = current_time
 
-        attendance = request.env['hr.attendance'].sudo().create(vals)
-        return {'success': True, 'attendance_id': attendance.id}
+        # Handle check-out action
+        if action == 'check_out':
+            # Get today's date in the user's timezone
+            user_tz = request.env.user.tz or 'UTC'
+            today = fields.Date.context_today(request.env['hr.attendance'].with_context(tz=user_tz))
+            
+            # Find the most recent check-in without check-out for this employee on the current day
+            domain = [
+                ('employee_id', '=', employee_id),
+                ('check_in', '>=', fields.Datetime.to_string(datetime.combine(today, datetime.min.time()))),
+                ('check_in', '<=', fields.Datetime.to_string(datetime.combine(today, datetime.max.time()))),
+                ('check_out', '=', False)  # No check-out recorded yet
+            ]
+            
+            existing_attendance = request.env['hr.attendance'].sudo().search(domain, order='check_in DESC', limit=1)
+            
+            if existing_attendance:
+                # Update the existing check-in record with check-out data
+                update_vals = {
+                    'check_out': current_time,
+                    'face_id_timestamp': face_id_timestamp,
+                }
+                
+                # Add out_* fields if provided
+                for k in ['out_latitude', 'out_longitude', 'out_country_name', 'out_city', 'out_ip_address', 'out_browser', 'out_mode']:
+                    if data.get(k):
+                        update_vals[k] = data.get(k)
+                    elif k == 'out_latitude' and latitude:
+                        update_vals[k] = latitude
+                    elif k == 'out_longitude' and longitude:
+                        update_vals[k] = longitude
+                    elif k == 'out_country_name' and country_name:
+                        update_vals[k] = country_name
+                    elif k == 'out_city' and city:
+                        update_vals[k] = city
+                    elif k == 'out_ip_address' and ip_address:
+                        update_vals[k] = ip_address
+                    elif k == 'out_browser' and browser:
+                        update_vals[k] = browser
+                
+                existing_attendance.write(update_vals)
+                return {
+                    'success': True, 
+                    'attendance_id': existing_attendance.id,
+                    'message': 'Updated existing check-in record with check-out time',
+                    'timestamp': fields.Datetime.to_string(current_time)
+                }
+            else:
+                # No existing check-in found for today, create a new record with both check-in and check-out
+                _logger.warning(f"No existing check-in found for employee {employee_id} today, creating new record with both check-in and check-out")
+                vals = {
+                    'employee_id': employee_id,
+                    'check_in': current_time - timedelta(minutes=1),  # Set check-in 1 minute before check-out
+                    'check_out': current_time,
+                    'face_id_result': face_id_result,
+                    'face_id_timestamp': face_id_timestamp,
+                    'in_ip_address': ip_address,
+                    'in_browser': browser,
+                    'in_latitude': latitude,
+                    'in_longitude': longitude,
+                    'in_country_name': country_name,
+                    'in_city': city,
+                    'is_within_geofence': is_within_geofence,
+                    'is_offline': is_offline,
+                    'company_id': company_id,
+                }
+                
+                # Add out_* fields if provided
+                for k in ['out_latitude', 'out_longitude', 'out_country_name', 'out_city', 'out_ip_address', 'out_browser', 'out_mode']:
+                    if data.get(k):
+                        vals[k] = data.get(k)
+                    elif k == 'out_latitude' and latitude:
+                        vals[k] = latitude
+                    elif k == 'out_longitude' and longitude:
+                        vals[k] = longitude
+                    elif k == 'out_country_name' and country_name:
+                        vals[k] = country_name
+                    elif k == 'out_city' and city:
+                        vals[k] = city
+                    elif k == 'out_ip_address' and ip_address:
+                        vals[k] = ip_address
+                    elif k == 'out_browser' and browser:
+                        vals[k] = browser
+                
+                attendance = request.env['hr.attendance'].sudo().create(vals)
+                return {
+                    'success': True, 
+                    'attendance_id': attendance.id,
+                    'message': 'Created new attendance record with both check-in and check-out',
+                    'timestamp': fields.Datetime.to_string(current_time)
+                }
+        else:  # Handle check-in action
+            vals = {
+                'employee_id': employee_id,
+                'check_in': current_time,
+                'face_id_result': face_id_result,
+                'face_id_timestamp': face_id_timestamp,
+                'in_ip_address': ip_address,
+                'in_browser': browser,
+                'in_latitude': latitude,
+                'in_longitude': longitude,
+                'in_country_name': country_name,
+                'in_city': city,
+                'is_within_geofence': is_within_geofence,
+                'is_offline': is_offline,
+                'company_id': company_id,
+            }
+            
+            # Add out_* fields if provided
+            for k in ['out_latitude', 'out_longitude', 'out_country_name', 'out_city', 'out_ip_address', 'out_browser', 'out_mode']:
+                if data.get(k):
+                    vals[k] = data.get(k)
+            
+            attendance = request.env['hr.attendance'].sudo().create(vals)
+            return {
+                'success': True, 
+                'attendance_id': attendance.id,
+                'message': 'Created new check-in record',
+                'timestamp': fields.Datetime.to_string(current_time)
+            }
 
     @http.route('/api/hr/attendances/confirm', type='http', auth='public', methods=['OPTIONS'], csrf=False)
     def options_attendance_confirm(self, **kw):
