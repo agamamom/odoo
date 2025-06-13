@@ -1448,24 +1448,23 @@ class HrRestApiController(http.Controller):
 
     @http.route('/api/hr/attendances/confirm', type='json', auth='public', methods=['POST'], csrf=False)
     def confirm_attendance(self, **kw):
-        """
-        Xác nhận đã nhận diện khuôn mặt thành công từ client.
-        Body: {
-            "employee_id": 123,
-            "action": "check_in",  // hoặc "check_out"
-            // Các trường bổ sung (tùy chọn):
-            // "in_latitude", "in_longitude", "in_country_name", "in_city", "in_ip_address", "in_browser", ...
-            // "out_latitude", "out_longitude", ...
-            // "face_id_result", "is_within_geofence", "is_offline", "company_id", ...
-        }
-        """
+        _logger.info("Raw request body: %s", request.httprequest.data)
+        _logger.info("Request headers: %s", dict(request.httprequest.headers))
+        try:
+            data = json.loads(request.httprequest.data.decode('utf-8'))
+            _logger.info("Manually parsed data: %s", data)
+        except json.JSONDecodeError as e:
+            _logger.error("JSON parsing error: %s", str(e))
+            return request.make_response(
+                json.dumps({'success': False, 'error': 'Invalid JSON data'}),
+                headers={'Content-Type': 'application/json'}
+            )
         # Validate API key
         is_valid, user = self._validate_api_key()
         if not is_valid:
             return {'success': False, 'error': user.get('error', 'Authentication failed')}
 
-        # For type='json' routes, Odoo automatically parses the JSON and makes it available in kw
-        data = kw
+       
         if not data:
             return {'success': False, 'error': 'No data provided in request body'}
 
