@@ -1448,6 +1448,29 @@ class HrRestApiController(http.Controller):
 
     @http.route('/api/hr/attendances/confirm', type='json', auth='public', methods=['POST'], csrf=False)
     def confirm_attendance(self, **kw):
+        """
+        Confirm attendance (check-in or check-out) for an employee
+        
+        Expected JSON body:
+        {
+            "employee_id": 123,  # Required: Employee ID
+            "action": "check_in", # Optional: "check_in" (default) or "check_out"
+            "local_time": "2023-10-25 08:30:00", # Optional: Local time in format "YYYY-MM-DD HH:MM:SS"
+            "timezone": "Asia/Ho_Chi_Minh", # Optional: Client timezone (default: "UTC")
+            "in_latitude": 10.123456, # Optional: Latitude for check-in location
+            "in_longitude": 106.123456, # Optional: Longitude for check-in location
+            "in_country_name": "Vietnam", # Optional: Country name
+            "in_city": "Ho Chi Minh City", # Optional: City name
+            "in_ip_address": "192.168.1.1", # Optional: IP address
+            "in_browser": "Chrome", # Optional: Browser info
+            "face_id_result": "success", # Optional: Face ID verification result
+            "is_within_geofence": true, # Optional: Whether the check-in is within the geofence
+            "is_offline": false, # Optional: Whether the check-in is done offline
+            "company_id": 1 # Optional: Company ID
+        }
+        
+        For check-out, you can provide the same fields with "out_" prefix instead of "in_"
+        """
         # For type='json' routes, kw already contains the parsed JSON data
         _logger.info("Raw request body: %s", request.httprequest.data)
         _logger.info("Request headers: %s", dict(request.httprequest.headers))
@@ -1460,7 +1483,6 @@ class HrRestApiController(http.Controller):
                 json.dumps({'success': False, 'error': 'Invalid JSON data'}),
                 headers={'Content-Type': 'application/json'}
             )
-
         
         # Validate API key
         is_valid, user = self._validate_api_key()
@@ -1469,12 +1491,10 @@ class HrRestApiController(http.Controller):
        
         if not data:
             return {'success': False, 'error': 'No data provided in request body'}
-
         employee_id = data.get('employee_id')
         action = data.get('action', 'check_in')
         if not employee_id:
             return {'success': False, 'error': 'Missing employee_id'}
-
         # Get additional information from request or client
         ip_address = data.get('in_ip_address') or request.httprequest.remote_addr
         browser = data.get('in_browser') or request.httprequest.user_agent.string if hasattr(request.httprequest, 'user_agent') else None
@@ -1489,12 +1509,24 @@ class HrRestApiController(http.Controller):
         
         # Get local time from client if provided, otherwise use server time
         local_time_str = data.get('local_time')
+        client_timezone_str = data.get('timezone', 'UTC')
+        
         if local_time_str:
             try:
                 # Parse the local time string (expected format: "YYYY-MM-DD HH:MM:SS")
                 local_time = datetime.strptime(local_time_str, "%Y-%m-%d %H:%M:%S")
-                current_time = fields.Datetime.to_datetime(local_time)
-                _logger.info(f"Using client-provided local time: {local_time_str}")
+                
+                # Convert local time to UTC based on client's timezone
+                try:
+                    import pytz
+                    client_timezone = pytz.timezone(client_timezone_str)
+                    local_time_with_tz = client_timezone.localize(local_time)
+                    utc_time = local_time_with_tz.astimezone(pytz.UTC)
+                    current_time = fields.Datetime.to_datetime(utc_time)
+                    _logger.info(f"Converted client-provided local time: {local_time_str} ({client_timezone_str}) to UTC: {utc_time}")
+                except (pytz.exceptions.UnknownTimeZoneError, ImportError) as tz_error:
+                    _logger.warning(f"Timezone conversion error: {str(tz_error)}. Using server time.")
+                    current_time = fields.Datetime.now()
             except (ValueError, TypeError) as e:
                 _logger.warning(f"Invalid local_time format: {local_time_str}, using server time instead. Error: {str(e)}")
                 current_time = fields.Datetime.now()
@@ -1502,7 +1534,6 @@ class HrRestApiController(http.Controller):
             current_time = fields.Datetime.now()
             
         face_id_timestamp = current_time
-
         # Handle check-out action
         if action == 'check_out':
             # Get today's date in the user's timezone
@@ -1521,6 +1552,7 @@ class HrRestApiController(http.Controller):
             
             if existing_attendance:
                 # Update the existing check-in record with check-out data
+                # current_time is already converted to UTC above
                 update_vals = {
                     'check_out': current_time,
                     'face_id_timestamp': face_id_timestamp,
@@ -1553,6 +1585,7 @@ class HrRestApiController(http.Controller):
             else:
                 # No existing check-in found for today, create a new record with both check-in and check-out
                 _logger.warning(f"No existing check-in found for employee {employee_id} today, creating new record with both check-in and check-out")
+                # current_time is already converted to UTC above
                 vals = {
                     'employee_id': employee_id,
                     'check_in': current_time - timedelta(minutes=1),  # Set check-in 1 minute before check-out
@@ -1595,6 +1628,7 @@ class HrRestApiController(http.Controller):
                     'timestamp': fields.Datetime.to_string(current_time)
                 }
         else:  # Handle check-in action
+            # current_time is already converted to UTC above
             vals = {
                 'employee_id': employee_id,
                 'check_in': current_time,
